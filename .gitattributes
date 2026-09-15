@@ -1,0 +1,13 @@
+# 统一使用 LF 换行,避免 Windows 的 autocrlf 把检出内容改成 CRLF
+# 从而产生「整个文件都被修改」的假差异(本项目全部文件都用 LF 提交)。
+* text=auto eol=lf
+
+# 明确标记为二进制,不做换行转换与 diff
+*.avif binary
+*.webp binary
+*.png binary
+*.jpg binary
+*.ico binary
+
+# 卡牌数据库是生成产物,默认折叠在 diff 里(它有一千多行)
+cards.js linguist-generated=true
