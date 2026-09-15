@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#12140f" />
+  <title>K一把 - KARDS卡牌猜测游戏</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 开始页 -->
+  <div id="start-screen" class="screen">
+    <div class="hero">
+      <span class="kicker">KARDS // 猜卡牌</span>
+      <h1>K一把</h1>
+      <p class="subtitle">输入卡名,根据颜色反馈,8 次机会内猜出目标卡牌</p>
+
+      <!-- 卡池模式:决定系统从哪个卡池里抽答案 -->
+      <div class="pool-picker" role="radiogroup" aria-label="卡池模式">
+        <span class="pool-label">卡池模式</span>
+        <div class="pool-seg" id="pool-seg">
+          <button type="button" class="pool-opt" data-pool="active" role="radio" aria-checked="false">
+            <b>仅现役</b><i id="pool-count-active">…</i>
+          </button>
+          <button type="button" class="pool-opt" data-pool="reserve" role="radio" aria-checked="false">
+            <b>仅预备</b><i id="pool-count-reserve">…</i>
+          </button>
+          <button type="button" class="pool-opt" data-pool="all" role="radio" aria-checked="true">
+            <b>全部卡池</b><i id="pool-count-all">…</i>
+          </button>
+        </div>
+        <p class="pool-note" id="pool-note"></p>
+      </div>
+
+      <button id="start-btn" class="btn btn-green btn-lg">开始游戏</button>
+      <button id="rules-trigger" class="link-btn">游戏规则</button>
+    </div>
+    <div class="footer" id="start-footer">离线单机版 · 数据直连官方接口</div>
+  </div>
+
+  <!-- 游戏页 -->
+  <div id="game-screen" class="screen hidden">
+    <div class="topbar">
+      <span class="brand">K一把</span>
+      <span class="actions">
+        <button id="restart-btn" class="btn">重新开始</button>
+        <button id="giveup-btn" class="btn btn-warning">查看答案</button>
+        <button id="back-btn" class="btn">返回首页</button>
+      </span>
+    </div>
+    <div class="game-wrap">
+      <div class="status-line">
+        <span id="progress" class="progress-dots"></span>
+        <span style="color:var(--border)">|</span>
+        <span id="status-text">准备中…</span>
+      </div>
+      <div class="table-wrap">
+        <table class="board">
+          <thead>
+            <tr>
+              <th>卡名</th><th>国籍</th><th>费用</th><th>类型</th><th>稀有度</th><th>卡包</th>
+            </tr>
+          </thead>
+          <tbody id="board-body"></tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <span><i class="legend-correct"></i>命中</span>
+        <span><i class="legend-close"></i>接近</span>
+        <span><i class="legend-wrong"></i>不匹配</span>
+      </div>
+      <div class="input-dock">
+        <div class="autocomplete">
+          <ul id="suggestions" class="suggestions"></ul>
+        </div>
+        <div class="input-bar">
+          <input id="guess-input" type="text" placeholder="输入卡名 / 别名,或复合搜索:334 德国 坦克" autocomplete="off" disabled />
+          <button id="guess-submit" class="btn btn-green" disabled>提交猜测</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结算弹窗 -->
+  <div id="result-overlay" class="overlay">
+    <div id="result-tone" class="overlay-card">
+      <h2 id="result-title"></h2>
+      <p class="muted" id="result-stats"></p>
+      <div class="answer-name" id="result-name"></div>
+      <table class="info-table" id="result-info"></table>
+      <div class="overlay-actions">
+        <button id="again-btn" class="btn btn-green">再来一把</button>
+        <button id="view-btn" class="btn">查看对局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则弹窗 -->
+  <div id="rules-overlay" class="overlay">
+    <div class="overlay-card">
+      <button id="rules-close" class="rule-close" aria-label="关闭">×</button>
+      <h2>游戏规则</h2>
+      <div class="rules-body">
+        <p>系统从 <b>1590 张</b>卡牌中随机选一张作为答案,你输入卡名,每次猜测会新增一行,逐属性给出反馈。</p>
+        <h3>反馈颜色</h3>
+        <ul>
+          <li><b style="color:var(--green)">绿色(命中)</b> —— 国籍、类型、稀有度、卡包与答案相同</li>
+          <li><b style="color:var(--yellow)">黄色(接近)</b> —— 费用相差 1 以内</li>
+          <li><b style="color:var(--text-light)">灰色</b> —— 与答案差距较大,或该属性为未知("-")</li>
+          <li><b>箭头</b> —— 费用提示答案更高(▲)/更低(▼)</li>
+        </ul>
+        <h3>属性说明</h3>
+        <ul>
+          <li><b>国籍</b>:苏联 / 美国 / 日本 / 德国 / 英国 / 法国 / 意大利 / 波兰 / 芬兰 / 澳新军团</li>
+          <li><b>费用</b>:部署费用,0~12</li>
+          <li><b>类型</b>:步兵 / 坦克 / 火炮 / 战斗机 / 轰炸机 / 指令 / 反制</li>
+          <li><b>稀有度</b>:标准 / 特殊 / 限定 / 精英,以及<b>衍生卡</b>(对局中召唤 / 生成的牌,统一标为「衍生卡」)</li>
+          <li><b>卡包</b>:基础 / 战火世界 / 突破 / 忠诚 / 血与铁 / 秘密行动 / 战区 / 冬季战争 / 海战 / 国土阵线 / 战友 / 军团 / 澳新风暴,另有<b>衍生</b>(衍生牌专用)</li>
+        </ul>
+        <h3>单位别名(三位数字速查)</h3>
+        <p>每张<b>单位卡</b>都有一个三位数字别名,可以直接输入(不必敲中文卡名),也可以用来联想:</p>
+        <ul>
+          <li><b>第 1 位 = 费用,第 2 位 = 攻击力,第 3 位 = 防御力</b>;例:3 费 2/4 的卡别名是 <b>324</b>;</li>
+          <li>0 费单位保留前导 0:0 费 1/2 → <b>012</b>;</li>
+          <li>指令与反制没有攻防,<b>没有别名</b>;</li>
+          <li><b>费用大于 10 的单位不设别名</b>(如 12 费的虎王坦克、鼠式坦克);</li>
+          <li>攻击力或防御力达到 10 的单位也不设别名(如戈登高地人团防御 10)。</li>
+        </ul>
+        <p class="muted">三位数字不足以唯一标识所有单位,同一别名可能对应几十张卡(如 334 有 36 张)。
+          <b>别名撞车时不能直接提交</b>,必须从下方的候选条里点选;候选条可滚动,也支持 ↑↓ 键选择。</p>
+        <h3>复合搜索</h3>
+        <p>用<b>空格</b>分隔多个词,可以按字段组合筛选(各词分别匹配不同字段,全部满足才列出):</p>
+        <ul>
+          <li><b>别名 + 国家</b>:<code>334 德国</code> —— 别名 334 且是德国卡(写作 <code>德国 334</code> 效果相同,<b>顺序无关</b>);</li>
+          <li><b>别名 + 类型</b>:<code>334 坦克</code>;</li>
+          <li><b>三词复合</b>:<code>334 德国 坦克</code>;</li>
+          <li><b>还能加稀有度</b>:<code>坦克 德国 精英</code>。</li>
+        </ul>
+        <p>可识别的字段词:</p>
+        <ul>
+          <li><b>国籍</b>:苏联 / 美国 / 日本 / 德国 / 英国 / 法国 / 意大利 / 波兰 / 芬兰 / 澳新军团(可用简称:苏 美 日 德 英 法 意 波 芬 澳)</li>
+          <li><b>类型</b>:步兵 / 坦克 / 火炮 / 战斗机 / 轰炸机 / 指令 / 反制(可用简称:步 炮 战斗 轰炸)</li>
+          <li><b>稀有度</b>:标准 / 特殊 / 限定 / 精英 / 衍生卡(可用:衍生)</li>
+          <li>其它词按卡名 / 别名子串匹配</li>
+        </ul>
+        <p class="muted">复合查询只用来缩小候选,<b>不能直接提交</b>(它不是卡名);请从候选条里点选具体卡牌。
+          候选条顶部会标出识别到的字段词,如 <code>[德国 + 坦克] 匹配 4 张</code>。</p>
+        <h3>不参与猜测的卡</h3>
+        <p>以下卡牌已在生成卡库时排除,不会成为答案、也不会出现在候选里:</p>
+        <ul>
+          <li><b>天气牌</b>(12 张)—— 澳新风暴天气机制的衍生牌(蓝天 / 暴雨 / 雷暴 / 热浪 / 季风雨 等);</li>
+          <li><b>老兵升级形态</b>(44 张)—— 与本体卡同名同属性、仅卡包不同,猜起来只有「卡包」一列有区别。</li>
+        </ul>
+        <p class="muted">其余 <b>73 张衍生牌已纳入</b>卡池,稀有度统一显示为「衍生卡」;
+          同名衍生牌用费用区分(如 惩戒(0费) … 惩戒(12费))。
+          触发天气的「预报」正规卡(海岸观察员、美国气象局等 11 张)也保留在卡池中。</p>
+        <h3>胜负</h3>
+        <p>卡名猜对即胜;8 次仍未猜中或主动查看答案则失败。</p>
+        <h3>卡池模式</h3>
+        <p>开始页可选择系统抽答案的卡池,选完即生效,可随时回首页更换:</p>
+        <ul>
+          <li><b>仅现役</b> —— 只从现役卡池抽答案,即当前能在天梯 / 休闲模式使用的卡;</li>
+          <li><b>仅预备</b> —— 只从预备卡池抽答案,即已退役、只能在经典模式使用的卡,难度更高;</li>
+          <li><b>全部卡池</b> —— 两者混在一起抽,卡名最全,但同名近似的卡也最多。</li>
+        </ul>
+        <p class="muted">卡池只影响「抽哪张当答案」,不影响判定规则;候选列表始终显示所选卡池内的卡。</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="cards.js"></script>
+  <script src="search.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

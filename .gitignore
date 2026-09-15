@@ -1,0 +1,17 @@
+# 忽略系统与编辑器产物
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# 卡图是可选资源(约 40~80 MB),默认不入库;需要时本地下载
+images/*.avif
+images/*.webp
+images/*.png
+
+# 依赖与日志(本项目零依赖,防止误提交)
+node_modules/
+npm-debug.log*
+*.log
