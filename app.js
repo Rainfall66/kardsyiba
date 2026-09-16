@@ -430,11 +430,7 @@
       startBtn.disabled = !n;
       startBtn.textContent = n ? '开始游戏 · ' + current.label + ' ' + n + ' 张' : '该卡池暂无卡牌';
     }
-    var footer = $('start-footer');
-    if (footer) {
-      footer.textContent = '离线单机版 · 现役 ' + (poolCounts.active || 0) + ' / 预备 '
-        + (poolCounts.reserve || 0) + ' / 全部 ' + (poolCounts.all || 0) + ' 张 · 数据直连官方接口';
-    }
+    // 页脚(含 GitHub / BILIBILI 链接)是 index.html 静态内容,这里不再覆盖
   }
 
   function setPool(id) {
