@@ -1,8 +1,9 @@
 // K一把 · KARDS卡牌数据库(由 kardsyiba-pipeline/build_cards.js 生成,请勿手改)
 // 数据链路:kardsyiba-pipeline 下 fetch_cards.js(直连官方 GraphQL) → merge_cards.js(整合) → build_cards.js
-// 共收录 1590 张可猜卡牌。
-// 已排除:衍生 token 牌 73 张、老兵升级形态 44 张;12 张重印卡追加「·卡包」后缀消歧。
-//   天气牌(澳新风暴天气机制)共 12 张,均在衍生 token 内,已一并移除;触发天气的「预报」正规卡保留。
+// 共收录 1578 张可猜卡牌,其中衍生卡 61 张(set=衍生,可用开始页的开关整组排除)。
+// 已排除:天气牌 12 张、「惩戒」同名衍生牌 12 张、老兵升级形态 44 张;4 张重印卡追加「·卡包」后缀消歧。
+//   天气牌(澳新风暴天气机制)触发天气的「预报」正规卡保留;
+//   「惩戒」12 张卡名完全相同、只能靠费用区分,同名卡过多影响猜卡体验,已整组移除。
 // 其中预备卡池 563 张(reserved: true)。
 // 卡包译名对齐官方简体中文,与官方若有出入以游戏内为准。
 // 字段: nickname 卡名(唯一) / nation 国籍 / cost 费用 / type 类型 / rarity 稀有度 / set 卡包
@@ -1245,18 +1246,6 @@ window.KARDSYIBA_CARDS = [
   { nickname: "足智多谋", nation: "英国", cost: 1, type: "指令", rarity: "限定", set: "军团", alias: "", reserved: true, image: "resourcefulness.avif" },
   { nickname: "喘息之机", nation: "苏联", cost: 4, type: "指令", rarity: "特殊", set: "秘密行动", alias: "", image: "respite.avif" },
   { nickname: "复仇", nation: "德国", cost: 2, type: "反制", rarity: "普通", set: "忠诚", alias: "", image: "retaliation.avif" },
-  { nickname: "惩戒(2费)·衍生", nation: "美国", cost: 2, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution.avif" },
-  { nickname: "惩戒(0费)", nation: "美国", cost: 0, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_b.avif" },
-  { nickname: "惩戒(3费)·衍生", nation: "美国", cost: 3, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_c.avif" },
-  { nickname: "惩戒(2费)·衍生2", nation: "美国", cost: 2, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_d.avif" },
-  { nickname: "惩戒(2费)·衍生3", nation: "美国", cost: 2, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_e.avif" },
-  { nickname: "惩戒(3费)·衍生2", nation: "美国", cost: 3, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_f.avif" },
-  { nickname: "惩戒(6费)", nation: "美国", cost: 6, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_g.avif" },
-  { nickname: "惩戒(5费)", nation: "美国", cost: 5, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_h.avif" },
-  { nickname: "惩戒(12费)", nation: "美国", cost: 12, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_i.avif" },
-  { nickname: "惩戒(2费)·衍生4", nation: "美国", cost: 2, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_j.avif" },
-  { nickname: "惩戒(1费)·衍生", nation: "美国", cost: 1, type: "指令", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_k.avif" },
-  { nickname: "惩戒(1费)·衍生2", nation: "美国", cost: 1, type: "反制", rarity: "衍生卡", set: "衍生", alias: "", image: "retribution_l.avif" },
   { nickname: "女武神的骑行", nation: "德国", cost: 2, type: "指令", rarity: "精英", set: "军团", alias: "", reserved: true, image: "ride_of_the_valkyries.avif" },
   { nickname: "RM 神射手号", nation: "意大利", cost: 1, type: "指令", rarity: "普通", set: "国土阵线", alias: "", image: "rm_bersagliere.avif" },
   { nickname: "RM 罗马号", nation: "意大利", cost: 4, type: "指令", rarity: "特殊", set: "海战", alias: "", image: "rm_roma.avif" },
