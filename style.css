@@ -281,12 +281,26 @@ button, a { touch-action: manipulation; }
 /* ---------- 游戏页 ---------- */
 .game-wrap {
   flex: 1;
+  /* 纵向 flex 是「输入坞贴底」的前提:下面 .input-dock 的 margin-top:auto
+     只有在 flex 容器里才会把输入区推到底部。原始写法(luoyiba / kayiba)漏了这两行,
+     于是 margin-top:auto 一直是死代码,输入区停在棋盘正下方,而候选条是**向上展开**的
+     —— 猜的次数少时棋盘矮、输入区偏上,候选条(最高 420px)就被顶出屏幕上沿,
+     连「匹配 N 张」的计数徽标都看不见(实测 900px 高的窗口里第一条就被切掉)。
+     贴底之后候选条上方等于整个视口,顺带把大片空白从输入区下方挪到棋盘与输入区之间。 */
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 73.75rem;
   margin: 0 auto;
   padding: 16px clamp(1rem, 4vw, 3.25rem) 24px;
   animation: surface-enter 0.52s cubic-bezier(0.2, 0.72, 0.25, 1) both;
 }
+/* 容器一旦有确定高度,flex 子项的 flex-shrink 默认是 1,棋盘会被压扁而不是撑开页面,
+   所以这几块都必须禁止收缩(输入坞保留 margin-top:auto 贴底,flex:none 不影响 auto 外边距) */
+.game-wrap > .status-line,
+.game-wrap > .table-wrap,
+.game-wrap > .legend,
+.game-wrap > .input-dock { flex: none; }
 .status-line {
   display: flex;
   align-items: center;
@@ -412,8 +426,10 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  /* 候选条:上限放宽到 60 条,用滚动查看;高度随可视区自适应 */
-  max-height: min(52vh, 420px);
+  /* 候选条:上限放宽到 60 条,用滚动查看;高度随可视区自适应。
+     三重上限 = 视口比例 ∩ 绝对上限 ∩ 输入坞上方的可用高度(输入坞贴底后
+     可用高度 ≈ 100vh − 顶栏 − 输入坞 ≈ 100vh − 12rem),这样极矮的窗口也不会顶出上沿 */
+  max-height: min(52vh, 420px, calc(100vh - 12rem));
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
