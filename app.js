@@ -16,9 +16,10 @@
  * - 联想只填入输入框,提交由玩家手动确认。
  *
  * 卡图(可选):
- * - 卡图放在 images/,文件名取自每张卡的 image 字段(cards.js);
+ * - 卡图放在 images/,文件名取自每张卡的 image 字段(cards.js),统一 400×562;
  * - 结算弹窗显示答案卡图;鼠标悬停棋盘的「卡名」格或候选条里的卡名即可预览该卡卡图,
  *   键盘上下键切换候选时预览跟随;
+ * - 悬停**不是立刻下载**:指针停稳 120ms 才发请求,免得鼠标扫过候选条时白发一堆请求;
  * - **卡图不是必需品**:images/ 不进版本控制,任何一次加载失败都会静默关掉预览与结算图,
  *   没有卡图时游戏完全照常玩。
  *
@@ -277,11 +278,35 @@
   // 「有图就显示,没图就安静地什么都不做」:任何一次加载失败都直接把预览整体关掉,
   // 免得在没下卡图的环境里每次悬停都白发一次 404 请求。
   var IMAGE_DIR = 'images/';
-  var CARD_IMAGE_RATIO = 702 / 500;   // 卡图全量实测统一 500×702,用于估算浮层高度
+  var CARD_IMAGE_RATIO = 562 / 400;   // 卡图统一 400×562(见流水线 optimize_images.js),用于估算浮层高度
   var imagesAvailable = true;
   var previewState = { visible: false, file: '' };
 
+  // 悬停意图延迟:鼠标扫过候选条会连续触发 mouseenter,若每次都立刻设 img.src,
+  // 前几十次请求虽然会被浏览器中断(同一个 <img> 换 src 会 abort 上一个),
+  // 但连接与首字节的代价已经付出去了。等指针停稳再发请求,能省掉绝大部分无效下载。
+  // 键盘 ↑↓ 切换是明确操作,不走延迟、立即加载。
+  var PREVIEW_HOVER_DELAY = 120;
+  var previewTimer = null;
+
   function imageUrl(file) { return file ? IMAGE_DIR + file : ''; }
+
+  function cancelPreviewTimer() {
+    if (previewTimer !== null) {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+    }
+  }
+
+  /** 悬停触发:等指针停稳再加载 */
+  function schedulePreview(file, anchor) {
+    cancelPreviewTimer();
+    if (!imagesAvailable || !file) { hidePreview(); return; }
+    previewTimer = setTimeout(function () {
+      previewTimer = null;
+      showPreview(file, anchor);
+    }, PREVIEW_HOVER_DELAY);
+  }
 
   /**
    * 把浮层摆在锚点元素旁边:优先右侧,右边放不下翻到左侧,再不行就贴边。
@@ -305,6 +330,7 @@
   }
 
   function showPreview(file, anchor) {
+    cancelPreviewTimer();   // 直接显示时,把还在排队的悬停延迟取消掉
     var panel = $('card-preview');
     var img = $('card-preview-img');
     if (!panel || !img) return;
@@ -320,6 +346,7 @@
   }
 
   function hidePreview() {
+    cancelPreviewTimer();
     var panel = $('card-preview');
     if (panel) panel.classList.remove('show');
     previewState.visible = false;
@@ -501,8 +528,8 @@
       var li = document.createElement('li');
       li.textContent = suggestionText(c);
       li.className = 'suggest-item' + (index === 0 ? ' active' : '');
-      // 悬停候选即可预览卡图(不用先填进输入框)
-      li.addEventListener('mouseenter', function () { showPreview(c.image, li); });
+      // 悬停候选即可预览卡图(等指针停稳再下载,见 schedulePreview)
+      li.addEventListener('mouseenter', function () { schedulePreview(c.image, li); });
       li.addEventListener('mouseleave', hidePreview);
       li.onmousedown = function (event) {
         // 只把候选填入输入框,提交由玩家手动点击"提交猜测"
@@ -709,7 +736,7 @@
     if (boardBody) {
       boardBody.addEventListener('mouseover', function (event) {
         var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
-        if (cell) showPreview(cell.getAttribute('data-image'), cell);
+        if (cell) schedulePreview(cell.getAttribute('data-image'), cell);
       });
       boardBody.addEventListener('mouseout', function (event) {
         var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
@@ -854,6 +881,8 @@
       imagesAvailable: imagesAvailable,
       showing: !!(panel && panel.classList.contains('show')),
       src: img ? (img.getAttribute('src') || '') : '',
+      pending: previewTimer !== null,     // 悬停延迟已排队、还没加载
+      hoverDelay: PREVIEW_HOVER_DELAY,
     };
   };
 

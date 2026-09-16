@@ -499,15 +499,15 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   margin: 6px 0 14px;
   color: #f0e9d6;
 }
-/* 结算弹窗里的答案卡图。卡图是 500×702(全量实测一致),写死宽高比可让
-   弹窗高度在图加载完成前就稳定下来,不会先塌一下再撑开。 */
+/* 结算弹窗里的答案卡图。卡图统一 400×562(流水线 optimize_images.js 缩过),
+   写死宽高比可让弹窗高度在图加载完成前就稳定下来,不会先塌一下再撑开。 */
 .result-art { display: flex; justify-content: center; margin: 2px 0 14px; }
 .result-art.hidden { display: none; }
 .result-art img {
   display: block;
   width: min(100%, 15rem);
   height: auto;
-  aspect-ratio: 500 / 702;
+  aspect-ratio: 400 / 562;
   border-radius: 6px;
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow);
@@ -597,7 +597,7 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 500 / 702;
+  aspect-ratio: 400 / 562;
   border-radius: 4px;
 }
 /* 触屏没有悬停,直接不显示浮层(候选条点选仍然照常工作) */
