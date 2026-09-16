@@ -20,8 +20,8 @@
  * - 结算弹窗显示答案卡图;鼠标悬停棋盘的「卡名」格或候选条里的卡名即可预览该卡卡图,
  *   键盘上下键切换候选时预览跟随;
  * - 悬停**不是立刻下载**:指针停稳 120ms 才发请求,免得鼠标扫过候选条时白发一堆请求;
- * - **卡图不是必需品**:images/ 不进版本控制,任何一次加载失败都会静默关掉预览与结算图,
- *   没有卡图时游戏完全照常玩。
+ * - **卡图不是必需品**:images/ 不进版本控制,加载失败只是静默隐藏预览与结算图
+ *   (并进入几秒冷却,避免没图时疯狂 404),冷却结束会自动恢复 —— 不会一次失败就永久失效。
  *
  * 数据库: window.KARDSYIBA_CARDS(见 cards.js,1590 张全卡表;由数据流水线 kardsyiba-pipeline 生成)
  */
@@ -279,10 +279,20 @@
   // 免得在没下卡图的环境里每次悬停都白发一次 404 请求。
   var IMAGE_DIR = 'images/';
   var CARD_IMAGE_RATIO = 562 / 400;   // 卡图统一 400×562(见流水线 optimize_images.js),用于估算浮层高度
-  var imagesAvailable = true;
   var previewState = { visible: false, file: '' };
+  var hoverAnchor = null;             // 当前指针所在的锚点(候选条目 / 棋盘卡名格)
 
-  // 悬停意图延迟:鼠标扫过候选条会连续触发 mouseenter,若每次都立刻设 img.src,
+  // 加载失败后的冷却。**不要改成「一次失败就永久关闭」**:那样只要有一张图因为
+  // 任何原因没拿到(在线版本来就没图、卡片目录被优化脚本切换的瞬间、代理抖动、
+  // 浏览器缓存里的坏响应),整个会话的预览就再也回不来了,表现就是
+  // 「扫过之后怎么等都不加载」。冷却期后自动允许重试,功能会自己恢复。
+  var IMAGE_RETRY_COOLDOWN_MS = 5000;
+  var imageBlockedUntil = 0;
+  function imageBlocked() { return Date.now() < imageBlockedUntil; }
+  function noteImageFailure() { imageBlockedUntil = Date.now() + IMAGE_RETRY_COOLDOWN_MS; }
+  function noteImageSuccess() { imageBlockedUntil = 0; }
+
+  // 悬停意图延迟:鼠标扫过候选条会连续触发悬停,若每次都立刻设 img.src,
   // 前几十次请求虽然会被浏览器中断(同一个 <img> 换 src 会 abort 上一个),
   // 但连接与首字节的代价已经付出去了。等指针停稳再发请求,能省掉绝大部分无效下载。
   // 键盘 ↑↓ 切换是明确操作,不走延迟、立即加载。
@@ -298,10 +308,26 @@
     }
   }
 
+  /**
+   * 指针移到某个锚点上。**锚点没变就什么都不做** —— 这一点很关键:
+   * 用 mousemove 驱动时它会连续触发,若每次都重排延迟,定时器永远等不到机会。
+   */
+  function hoverItem(el, file) {
+    if (hoverAnchor === el) return;
+    hoverAnchor = el;
+    schedulePreview(file, el);
+  }
+
+  /** 指针离开锚点(离开容器,或落到容器内的空白处) */
+  function unhoverItem() {
+    hoverAnchor = null;
+    hidePreview();
+  }
+
   /** 悬停触发:等指针停稳再加载 */
   function schedulePreview(file, anchor) {
     cancelPreviewTimer();
-    if (!imagesAvailable || !file) { hidePreview(); return; }
+    if (imageBlocked() || !file) { hidePreview(); return; }
     previewTimer = setTimeout(function () {
       previewTimer = null;
       showPreview(file, anchor);
@@ -334,7 +360,7 @@
     var panel = $('card-preview');
     var img = $('card-preview-img');
     if (!panel || !img) return;
-    if (!imagesAvailable || !file) { hidePreview(); return; }
+    if (imageBlocked() || !file) { hidePreview(); return; }
     if (img.getAttribute('data-file') !== file) {
       img.setAttribute('data-file', file);
       img.setAttribute('src', imageUrl(file));
@@ -363,7 +389,7 @@
     var img = $('result-image');
     if (!art || !img) return;
     var file = card && card.image;
-    if (!file || !imagesAvailable) { art.classList.add('hidden'); return; }
+    if (!file || imageBlocked()) { art.classList.add('hidden'); return; }
     img.setAttribute('data-file', file);
     img.setAttribute('alt', (card.nickname || '') + ' 的卡图');
     img.setAttribute('src', imageUrl(file));
@@ -461,6 +487,7 @@
     suggestions = [];
     $('suggestions').innerHTML = '';
     $('suggestions').classList.remove('open');
+    hoverAnchor = null;   // 列表没了,锚点也要清掉,否则下次移到同一位置不会重新触发
     hidePreview();
   }
 
@@ -528,9 +555,8 @@
       var li = document.createElement('li');
       li.textContent = suggestionText(c);
       li.className = 'suggest-item' + (index === 0 ? ' active' : '');
-      // 悬停候选即可预览卡图(等指针停稳再下载,见 schedulePreview)
-      li.addEventListener('mouseenter', function () { schedulePreview(c.image, li); });
-      li.addEventListener('mouseleave', hidePreview);
+      // 卡图文件名挂在 data-image 上,由容器上的 mousemove 委托读取(见 bind)
+      if (c.image) li.setAttribute('data-image', c.image);
       li.onmousedown = function (event) {
         // 只把候选填入输入框,提交由玩家手动点击"提交猜测"
         event.preventDefault();
@@ -730,39 +756,51 @@
       }
     });
 
-    // 棋盘:鼠标悬停在「卡名」格上预览该卡卡图
-    // 用事件委托(棋盘会整块重建,逐格绑会丢),mouseover/mouseout 才能冒泡上来
-    var boardBody = $('board-body');
-    if (boardBody) {
-      boardBody.addEventListener('mouseover', function (event) {
-        var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
-        if (cell) schedulePreview(cell.getAttribute('data-image'), cell);
+    // 卡图预览的悬停检测:两个容器各装一对「mousemove + mouseleave」委托。
+    //
+    // 为什么不用逐元素的 mouseenter/mouseleave:浏览器只会在指针**跨过元素边界**时
+    // 才补发 enter/leave。候选条每次输入都会整块重建,棋盘每猜一次也会重建,
+    // 这时指针底下已经换成了新元素,但只要指针不动就永远等不到 enter 事件 ——
+    // 表现就是「扫过之后怎么等都不加载」。改成 mousemove 后,指针一动就按当前
+    // 实际命中的元素重新判定,锚点没变时 hoverItem 会直接返回,不会打断意图延迟。
+    var sugList = $('suggestions');
+    if (sugList) {
+      sugList.addEventListener('mousemove', function (event) {
+        var li = event.target && event.target.closest ? event.target.closest('.suggest-item') : null;
+        if (li) hoverItem(li, li.getAttribute('data-image'));
+        else unhoverItem();
       });
-      boardBody.addEventListener('mouseout', function (event) {
-        var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
-        if (!cell) return;
-        // 在格子内部移动也会触发 mouseout,目标还在格子里就别关
-        var to = event.relatedTarget;
-        if (to && typeof cell.contains === 'function' && cell.contains(to)) return;
-        hidePreview();
-      });
+      sugList.addEventListener('mouseleave', unhoverItem);
     }
 
-    // 卡图加载失败 = 这台机器上没有卡图(images/ 不进版本控制)。
-    // 关掉预览,并让结算弹窗不要尝试显示图片。
+    var boardBody = $('board-body');
+    if (boardBody) {
+      boardBody.addEventListener('mousemove', function (event) {
+        var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
+        if (cell) hoverItem(cell, cell.getAttribute('data-image'));
+        else unhoverItem();
+      });
+      boardBody.addEventListener('mouseleave', unhoverItem);
+    }
+
+    // 加载失败 → 冷却几秒再允许重试(不是永久关闭,见 imageBlocked 的注释)
     var previewImg = $('card-preview-img');
     if (previewImg) {
+      previewImg.addEventListener('load', noteImageSuccess);
       previewImg.addEventListener('error', function () {
-        imagesAvailable = false;
+        noteImageFailure();
         hidePreview();
       });
     }
     var resultImg = $('result-image');
     var resultArt = $('result-art');
     if (resultImg && resultArt) {
-      resultImg.addEventListener('load', function () { resultArt.classList.remove('hidden'); });
+      resultImg.addEventListener('load', function () {
+        noteImageSuccess();
+        resultArt.classList.remove('hidden');
+      });
       resultImg.addEventListener('error', function () {
-        imagesAvailable = false;
+        noteImageFailure();
         resultArt.classList.add('hidden');
       });
     }
@@ -878,11 +916,13 @@
     return {
       visible: previewState.visible,
       file: previewState.file,
-      imagesAvailable: imagesAvailable,
       showing: !!(panel && panel.classList.contains('show')),
       src: img ? (img.getAttribute('src') || '') : '',
       pending: previewTimer !== null,     // 悬停延迟已排队、还没加载
       hoverDelay: PREVIEW_HOVER_DELAY,
+      blocked: imageBlocked(),            // 处于加载失败冷却中(冷却结束会自动恢复)
+      cooldownMs: IMAGE_RETRY_COOLDOWN_MS,
+      anchor: hoverAnchor ? hoverAnchor.tagName : '',
     };
   };
 

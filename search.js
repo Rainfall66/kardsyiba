@@ -47,8 +47,10 @@
   ];
 
   // 稀有度:规范名 → 可接受的写法
+  // 「标准」是旧译名,已改为「普通」;这里只保留英文 standard 作为别名,不再认「标准」,
+  // 免得和卡名「标准弹药」的语义边界变模糊。
   var RARITIES = [
-    { key: '标准', words: ['标准', 'standard'] },
+    { key: '普通', words: ['普通', 'standard'] },
     { key: '特殊', words: ['特殊', 'special'] },
     { key: '限定', words: ['限定', 'limited'] },
     { key: '精英', words: ['精英', 'elite'] },
