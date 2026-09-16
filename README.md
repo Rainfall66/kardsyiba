@@ -50,8 +50,6 @@ python3 -m http.server 8080    # 然后访问 http://localhost:8080/
 | 卡包 | 精确 | 基础 / 世纪大战 / 突破 / 忠诚 / 血与铁 / 秘密行动 / 战区 / 冬季战争 / 海战 / 国土阵线 / 战友 / 军团 / 澳新风暴 / **衍生** |
 
 卡包译名一律对齐 [KARDS 官方简体中文扩展页](https://www.kards.com/zh/expansions)
-(其中 `BloodAndIron` = **血与铁**、`Homefront` = **国土阵线**、`BrothersInArms` = **战友**,
-均非字面直译的「铁血 / 家园战线 / 兄弟连」)。
 
 想增删列:改 `app.js` 里的 `compare()` + `COLUMNS`,与 `index.html` 的 `<th>` 三处保持一致即可。
 
