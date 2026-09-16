@@ -220,6 +220,9 @@ button, a { touch-action: manipulation; }
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+  /* 必须给宽度:父级 .hero 是 align-items:center,不给的话本容器按内容收缩,
+     里面的 .pool-seg 再算 min(100%, 30rem) 就会得到「内容宽度」,两个选择器宽度对不齐 */
+  width: min(100%, 30rem);
 }
 .pool-label {
   font-size: 0.72rem;
@@ -261,6 +264,8 @@ button, a { touch-action: manipulation; }
 }
 .pool-opt[aria-checked="true"] i { color: var(--primary); }
 .pool-opt:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* 衍生卡开关只有两个选项,复用同一套按钮样式,只把列数改成 2 */
+.pool-seg-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pool-note {
   min-height: 1.1em;
   font-size: 0.76rem;

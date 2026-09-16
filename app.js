@@ -81,6 +81,7 @@
   var RECENT_KEY = 'kards-yiba:recent';
   var STATS_KEY = 'kards-yiba:stats';
   var POOL_KEY = 'kards-yiba:pool';
+  var TOKEN_KEY = 'kards-yiba:tokens';
   var RECENT_WINDOW_MS = 60 * 60 * 1000;
   // 候选上限:单位别名会撞车(如 334 对应 36 张),上限太小就没法从列表里挑,
   // 因此放宽到 60 条,配合可滚动的候选条使用
@@ -107,11 +108,27 @@
     {
       id: 'all',
       label: '全部卡池',
-      note: '现役 + 预备全卡表 · 含老兵升级形态',
+      note: '现役 + 预备全卡表 · 卡名最全',
       filter: function () { return true; },
     },
   ];
   var DEFAULT_POOL = 'all';
+
+  // ---------- 衍生卡开关(与卡池模式相互独立) ----------
+  // 衍生牌 = 由卡牌效果生成 / 召唤、**不可收集**的牌,卡库里有 73 张。
+  // build_cards.js 会给它们同时打上两个标记(set=衍生、rarity=衍生卡),
+  // 这里两个都认,免得将来只改一处就静默失效。
+  var TOKEN_SET = '衍生';
+  var TOKEN_RARITY = '衍生卡';
+  function isToken(c) { return c.set === TOKEN_SET || c.rarity === TOKEN_RARITY; }
+
+  // 两个选项的 id 与 radio 的 data-token 一一对应
+  var TOKEN_OPTIONS = [
+    { id: 'with', withTokens: true, label: '包含衍生卡' },
+    { id: 'without', withTokens: false, label: '排除衍生卡' },
+  ];
+  var DEFAULT_WITH_TOKENS = true;
+  var TOKEN_TOTAL = CARDS.filter(isToken).length;
 
   function findPool(id) {
     for (var i = 0; i < POOLS.length; i++) {
@@ -119,12 +136,20 @@
     }
     return null;
   }
-  function poolCards(id) {
+
+  /**
+   * 取某个卡池的卡。
+   * 第二个参数省略时用当前设置;显式传值便于渲染时把含 / 不含两种张数都算出来。
+   */
+  function poolCards(id, withTokens) {
     var pool = findPool(id) || findPool(DEFAULT_POOL);
-    return CARDS.filter(pool.filter);
+    var wantTokens = withTokens === undefined ? state.withTokens : !!withTokens;
+    return CARDS.filter(function (c) {
+      return pool.filter(c) && (wantTokens || !isToken(c));
+    });
   }
 
-  var state = { target: null, guesses: [], status: 'ready', poolId: DEFAULT_POOL };
+  var state = { target: null, guesses: [], status: 'ready', poolId: DEFAULT_POOL, withTokens: DEFAULT_WITH_TOKENS };
   var $ = function (id) { return document.getElementById(id); };
 
   function storageGet(key) {
@@ -334,8 +359,8 @@
     $('guess-input').value = '';
     closeSuggestions();
     renderBoard();
-    $('status-text').textContent = pool.label + ' · ' + activePool.length + ' 张 · 共 '
-      + MAX_GUESSES + ' 次机会';
+    $('status-text').textContent = pool.label + ' · ' + (state.withTokens ? '含衍生' : '不含衍生')
+      + ' · ' + activePool.length + ' 张 · 共 ' + MAX_GUESSES + ' 次机会';
     $('guess-input').disabled = false;
     $('guess-submit').disabled = false;
     $('guess-input').focus();
@@ -490,15 +515,39 @@
     list.classList.add('open');
   }
 
-  // ---------- 卡池模式(开始页选择器) ----------
-  var poolCounts = {};
+  // ---------- 开始页两个选择器(卡池模式 / 衍生卡开关) ----------
+  // 两者相互独立:卡池决定「现役还是预备」,衍生开关决定「要不要不可收集的牌」,
+  // 组合起来 3 × 2 共 6 种,所以每个选择器的张数都要按另一个的当前值来算。
+  var poolCounts = {};     // 当前衍生设置下,各卡池的张数
+  var tokenCounts = {};    // 当前卡池下,含 / 不含衍生卡的张数
 
   function computePoolCounts() {
     poolCounts = {};
-    POOLS.forEach(function (pool) { poolCounts[pool.id] = CARDS.filter(pool.filter).length; });
+    POOLS.forEach(function (pool) {
+      poolCounts[pool.id] = poolCards(pool.id, state.withTokens).length;
+    });
+    tokenCounts = {
+      with: poolCards(state.poolId, true).length,
+      without: poolCards(state.poolId, false).length,
+    };
+  }
+
+  /** 衍生开关的说明文案:要如实反映「本卡池里到底有没有衍生牌」 */
+  function tokenOptionNote() {
+    var inPool = tokenCounts.with - tokenCounts.without;
+    var label = (findPool(state.poolId) || {}).label || '';
+    if (!inPool) {
+      return '本卡池(' + label + ')没有衍生牌,这个开关对本局无影响';
+    }
+    if (state.withTokens) {
+      return '卡池含 ' + inPool + ' 张衍生牌 · 不可收集,由卡牌效果生成 / 召唤';
+    }
+    return '已排除 ' + inPool + ' 张衍生牌 · 只保留可收集的正规卡';
   }
 
   function renderPoolPicker() {
+    computePoolCounts();   // 两个选择器互相影响,统一在这里重算
+
     POOLS.forEach(function (pool) {
       // aria-checked / disabled 要设在按钮(带 data-pool 的 .pool-opt)上,
       // 不能设在按钮内部的张数 <i> 上
@@ -511,14 +560,31 @@
       }
       if (countEl) countEl.textContent = count + ' 张';
     });
+
+    TOKEN_OPTIONS.forEach(function (opt) {
+      var btn = document.querySelector('.pool-opt[data-token="' + opt.id + '"]');
+      var countEl = $('token-count-' + opt.id);
+      var count = tokenCounts[opt.id] || 0;
+      if (btn) {
+        btn.setAttribute('aria-checked', opt.withTokens === state.withTokens ? 'true' : 'false');
+        btn.disabled = !count;
+      }
+      if (countEl) countEl.textContent = count + ' 张';
+    });
+
     var current = findPool(state.poolId) || findPool(DEFAULT_POOL);
     var noteEl = $('pool-note');
     if (noteEl) noteEl.textContent = current.note;
+    var tokenNoteEl = $('token-note');
+    if (tokenNoteEl) tokenNoteEl.textContent = tokenOptionNote();
+
     var startBtn = $('start-btn');
     if (startBtn) {
       var n = poolCounts[current.id] || 0;
       startBtn.disabled = !n;
-      startBtn.textContent = n ? '开始游戏 · ' + current.label + ' ' + n + ' 张' : '该卡池暂无卡牌';
+      startBtn.textContent = n
+        ? '开始游戏 · ' + current.label + ' ' + (state.withTokens ? '含衍生 ' : '不含衍生 ') + n + ' 张'
+        : '该卡池暂无卡牌';
     }
     // 页脚(含 GitHub / BILIBILI 链接)是 index.html 静态内容,这里不再覆盖
   }
@@ -530,6 +596,12 @@
     renderPoolPicker();
   }
 
+  function setWithTokens(flag) {
+    state.withTokens = !!flag;
+    storageSet(TOKEN_KEY, state.withTokens);
+    renderPoolPicker();
+  }
+
   function loadPool() {
     var saved = storageGet(POOL_KEY);
     // 只接受已知卡池,且该池当前确实有卡(数据更新后卡池可能变空)
@@ -538,6 +610,12 @@
     } else {
       state.poolId = DEFAULT_POOL;
     }
+  }
+
+  function loadTokenOption() {
+    var saved = storageGet(TOKEN_KEY);
+    // 存档里是布尔值就采信;旧存档没这一项 → 用默认值(包含衍生卡)
+    state.withTokens = typeof saved === 'boolean' ? saved : DEFAULT_WITH_TOKENS;
   }
 
   // ---------- 规则弹窗 ----------
@@ -566,6 +644,25 @@
         var step = (event.key === 'ArrowRight' || event.key === 'ArrowDown') ? 1 : -1;
         var next = (cur + step + ids.length) % ids.length;
         setPool(ids[next]);
+      });
+    }
+    // 衍生卡开关:同样是点击即生效,与卡池模式互不影响
+    var tokenSeg = $('token-seg');
+    if (tokenSeg) {
+      tokenSeg.addEventListener('click', function (event) {
+        var btn = event.target.closest ? event.target.closest('.pool-opt') : null;
+        if (!btn || btn.disabled) return;
+        setWithTokens(btn.getAttribute('data-token') === 'with');
+      });
+      tokenSeg.addEventListener('keydown', function (event) {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight'
+          && event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        var ids = TOKEN_OPTIONS.map(function (o) { return o.id; });
+        var cur = state.withTokens ? 0 : 1;
+        var step = (event.key === 'ArrowRight' || event.key === 'ArrowDown') ? 1 : -1;
+        var next = (cur + step + ids.length) % ids.length;
+        setWithTokens(TOKEN_OPTIONS[next].withTokens);
       });
     }
     $('start-btn').addEventListener('click', function () {
@@ -730,7 +827,9 @@
     showPreview(suggestions[next].image, items[next]);
   }
 
-  // 初始化顺序:先算各卡池张数 → 再读存档(需要张数判断卡池是否可用)→ 渲染 → 绑定事件
+  // 初始化顺序:先读衍生开关 → 算各卡池张数 → 读卡池存档(要用张数判断卡池是否可用)
+  // → 渲染 → 绑定事件
+  loadTokenOption();
   computePoolCounts();
   loadPool();
   renderPoolPicker();
@@ -739,7 +838,12 @@
   // 暴露只读状态供测试/调试使用(不改动游戏逻辑)
   KARDSYIBA.poolCards = poolCards;
   KARDSYIBA.getPoolState = function () {
-    return { poolId: state.poolId, target: state.target, poolSize: activePool.length };
+    return {
+      poolId: state.poolId,
+      withTokens: state.withTokens,
+      target: state.target,
+      poolSize: activePool.length,
+    };
   };
   KARDSYIBA.getPreviewState = function () {
     var img = $('card-preview-img');

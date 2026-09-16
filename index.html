@@ -32,6 +32,20 @@
         <p class="pool-note" id="pool-note"></p>
       </div>
 
+      <!-- 衍生卡开关:与上面的卡池模式相互独立(3 种卡池 × 2 种衍生设置) -->
+      <div class="pool-picker" role="radiogroup" aria-label="是否包含衍生卡">
+        <span class="pool-label">衍生卡</span>
+        <div class="pool-seg pool-seg-2" id="token-seg">
+          <button type="button" class="pool-opt" data-token="with" role="radio" aria-checked="true">
+            <b>包含衍生卡</b><i id="token-count-with">…</i>
+          </button>
+          <button type="button" class="pool-opt" data-token="without" role="radio" aria-checked="false">
+            <b>排除衍生卡</b><i id="token-count-without">…</i>
+          </button>
+        </div>
+        <p class="pool-note" id="token-note"></p>
+      </div>
+
       <button id="start-btn" class="btn btn-green btn-lg">开始游戏</button>
       <button id="rules-trigger" class="link-btn">游戏规则</button>
     </div>
@@ -123,7 +137,8 @@
       <button id="rules-close" class="rule-close" aria-label="关闭">×</button>
       <h2>游戏规则</h2>
       <div class="rules-body">
-        <p>系统从 <b>1590 张</b>卡牌中随机选一张作为答案,你输入卡名,每次猜测会新增一行,逐属性给出反馈。</p>
+        <p>系统从卡库中随机选一张作为答案(默认 <b>1590 张</b>,可在开始页按卡池与衍生卡设置缩小范围),
+          你输入卡名,每次猜测会新增一行,逐属性给出反馈。</p>
         <h3>反馈颜色</h3>
         <ul>
           <li><b style="color:var(--green)">绿色(命中)</b> —— 国籍、类型、稀有度、卡包与答案相同</li>
@@ -191,6 +206,14 @@
           <li><b>全部卡池</b> —— 两者混在一起抽,卡名最全,但同名近似的卡也最多。</li>
         </ul>
         <p class="muted">卡池只影响「抽哪张当答案」,不影响判定规则;候选列表始终显示所选卡池内的卡。</p>
+        <h3>衍生卡开关</h3>
+        <p>开始页还有一个<b>独立于卡池模式</b>的「衍生卡」开关,两者互不影响(3 种卡池 × 2 种设置 = 6 种组合):</p>
+        <ul>
+          <li><b>包含衍生卡</b>(默认)—— 卡池包含 73 张衍生牌;</li>
+          <li><b>排除衍生卡</b> —— 只保留可收集的正规卡,全部卡池从 1590 张降到 1517 张。</li>
+        </ul>
+        <p class="muted">衍生牌是由卡牌效果生成 / 召唤、<b>不能收集</b>的牌(合成橡胶、雷达、惩戒等),
+          它们<b>全部属于现役卡池</b>,所以在「仅预备」模式下这个开关不起作用 —— 界面上会直接说明。</p>
       </div>
     </div>
   </div>
