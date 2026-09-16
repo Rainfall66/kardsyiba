@@ -1,6 +1,6 @@
-# images/ —— 卡图目录(预留)
+# images/ —— 卡图目录
 
-此目录为**卡图预留目录**,默认是空的。**游戏本体不依赖卡图**,没有图也能正常游玩。
+此目录存放**卡图**(AVIF),默认是空的。**游戏本体不依赖卡图**,没有图也能正常游玩。
 
 ## 目录约定
 
@@ -16,21 +16,31 @@
 ```bash
 cd ../kardsyiba-pipeline
 
-# 全量下载(约 1600 张 AVIF;国内需挂代理)
-HTTPS_PROXY=http://127.0.0.1:7897 NODE_USE_ENV_PROXY=1 node fetch_images.js
+# 1) 先取官方当前 CDN 版本号(需代理,几秒)
+$env:HTTPS_PROXY='http://127.0.0.1:7897'; $env:NODE_USE_ENV_PROXY='1'
+node fetch_image_index.js
 
-# 只下现役卡池 / 只试跑 20 张
-node fetch_images.js --pool active
+# 2) 下载游戏卡库需要的 1590 张 AVIF
+node fetch_images.js
+
+# 只试跑 20 张 / 校验已下载的文件(校验不联网)
 node fetch_images.js --limit 20
+node fetch_images.js --verify
 ```
 
 图片会落到本目录,下载清单写在流水线的 `images-manifest.json`。
 
-图片 URL 模板(实测可达):
+图片 URL 形如:
 
 ```
-https://www.kards.com/images/card/v52/zh-Hans/<image>
+https://www.kards.com/images/card/<版本>/<语言>/<image>
+例:https://www.kards.com/images/card/v53/zh-Hans/13e_dragons.avif
 ```
 
-`<image>` 即卡牌的 `image` 字段;完整 URL 也已预先算在整合卡库的 `imageUrl` 字段里。
-把语言段 `zh-Hans` 换成 `en-EN` 即英文卡图。
+- `<版本>` **不要写死**:接口的 `node.image` 字段会给当前版本(实测 v52 → v53);
+  `fetch_image_index.js` 就是去取这个值的,没有它脚本只能用兜底版本并警告。
+- `<语言>` 取 `zh-Hans`(中文)或 `en-EN`(英文)。接口给的路径**恒为 `en-EN`**,
+  改 `Accept-Language` 无效,所以中文图是脚本自己替换语言段拼出来的。
+
+> 卡图**不纳入版本控制**(见 `../.gitignore`):全量约 40~80 MB,而游戏本体不依赖卡图。
+> 版权归游戏官方(1939 Games)所有,仅作粉丝向非商业交流使用。
