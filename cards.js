@@ -1,9 +1,10 @@
 // K一把 · KARDS卡牌数据库(由 kardsyiba-pipeline/build_cards.js 生成,请勿手改)
 // 数据链路:kardsyiba-pipeline 下 fetch_cards.js(直连官方 GraphQL) → merge_cards.js(整合) → build_cards.js
-// 共收录 1578 张可猜卡牌,其中衍生卡 61 张(set=衍生,可用开始页的开关整组排除)。
-// 已排除:天气牌 12 张、「惩戒」同名衍生牌 12 张、老兵升级形态 44 张;4 张重印卡追加「·卡包」后缀消歧。
+// 共收录 1576 张可猜卡牌,其中衍生卡 59 张(set=衍生,可用开始页的开关整组排除)。
+// 已排除:天气牌 12 张、「惩戒」同名衍生牌 12 张、与正规卡同名的衍生牌 2 张、老兵升级形态 44 张。
 //   天气牌(澳新风暴天气机制)触发天气的「预报」正规卡保留;
-//   「惩戒」12 张卡名完全相同、只能靠费用区分,同名卡过多影响猜卡体验,已整组移除。
+//   「惩戒」12 张卡名完全相同、只能靠费用区分,同名卡过多影响猜卡体验,已整组移除;
+//   同名衍生牌 T-34 1942(t34_1942_b) / T-70(t70_b) 与正规卡属性完全相同,保留正规卡。
 // 其中预备卡池 563 张(reserved: true)。
 // 卡包译名对齐官方简体中文,与官方若有出入以游戏内为准。
 // 字段: nickname 卡名(唯一) / nation 国籍 / cost 费用 / type 类型 / rarity 稀有度 / set 卡包
@@ -1410,8 +1411,7 @@ window.KARDSYIBA_CARDS = [
   { nickname: "T19 榴弹炮", nation: "美国", cost: 2, type: "火炮", rarity: "普通", set: "基础", alias: "213", image: "t19_howitzer.avif" },
   { nickname: "T-26 FI", nation: "芬兰", cost: 1, type: "坦克", rarity: "普通", set: "冬季战争", alias: "113", image: "t26_fi.avif" },
   { nickname: "T-28", nation: "苏联", cost: 3, type: "坦克", rarity: "精英", set: "突破", alias: "323", reserved: true, image: "t28.avif" },
-  { nickname: "T-34 1942·基础", nation: "苏联", cost: 5, type: "坦克", rarity: "普通", set: "基础", alias: "555", image: "t34_1942.avif" },
-  { nickname: "T-34 1942·衍生", nation: "苏联", cost: 5, type: "坦克", rarity: "衍生卡", set: "衍生", alias: "555", image: "t34_1942_b.avif" },
+  { nickname: "T-34 1942", nation: "苏联", cost: 5, type: "坦克", rarity: "普通", set: "基础", alias: "555", image: "t34_1942.avif" },
   { nickname: "T-34-76 PL", nation: "波兰", cost: 4, type: "坦克", rarity: "普通", set: "军团", alias: "444", image: "t34_76_pl.avif" },
   { nickname: "T-34-76D", nation: "苏联", cost: 4, type: "坦克", rarity: "普通", set: "血与铁", alias: "444", image: "t3476d.avif" },
   { nickname: "T-34-85", nation: "苏联", cost: 5, type: "坦克", rarity: "普通", set: "基础", alias: "555", reserved: true, image: "t3485.avif" },
@@ -1419,8 +1419,7 @@ window.KARDSYIBA_CARDS = [
   { nickname: "T-34-85 1945", nation: "苏联", cost: 6, type: "坦克", rarity: "精英", set: "血与铁", alias: "666", image: "t3485_1945.avif" },
   { nickname: "T-35", nation: "苏联", cost: 2, type: "坦克", rarity: "限定", set: "冬季战争", alias: "223", reserved: true, image: "t35.avif" },
   { nickname: "T-60", nation: "苏联", cost: 4, type: "坦克", rarity: "限定", set: "突破", alias: "424", image: "t60.avif" },
-  { nickname: "T-70·基础", nation: "苏联", cost: 2, type: "坦克", rarity: "普通", set: "基础", alias: "232", image: "t70.avif" },
-  { nickname: "T-70·衍生", nation: "苏联", cost: 2, type: "坦克", rarity: "衍生卡", set: "衍生", alias: "232", image: "t70_b.avif" },
+  { nickname: "T-70", nation: "苏联", cost: 2, type: "坦克", rarity: "普通", set: "基础", alias: "232", image: "t70.avif" },
   { nickname: "T-80", nation: "苏联", cost: 2, type: "坦克", rarity: "特殊", set: "忠诚", alias: "232", image: "t80.avif" },
   { nickname: "暂避锋芒", nation: "德国", cost: 1, type: "反制", rarity: "普通", set: "国土阵线", alias: "", image: "tactical_retreat.avif" },
   { nickname: "战术打击", nation: "德国", cost: 3, type: "指令", rarity: "限定", set: "基础", alias: "", image: "tactical_strike.avif" },
