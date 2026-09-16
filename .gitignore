@@ -6,10 +6,9 @@ desktop.ini
 .idea/
 .vscode/
 
-# 卡图是可选资源(约 40~80 MB),默认不入库;需要时本地下载
-images/*.avif
-images/*.webp
-images/*.png
+# 卡图**入库**(约 25.8 MB / 1590 张),线上 GitHub Pages 要直接引用,不能再忽略。
+# 下架或换图:删掉对应 avif 再提交即可。
+# (早期版本忽略 images/*.avif,导致线上试玩版一张图都没有 —— 见 images/README.md)
 
 # 依赖与日志(本项目零依赖,防止误提交)
 node_modules/
