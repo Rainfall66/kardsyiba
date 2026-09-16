@@ -34,6 +34,18 @@
 
 html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
 
+/* 触屏基础设定(手机端点击「迟滞」的一大半来自这三条没设):
+   - text-size-adjust:禁止移动端自动放大字号,避免布局在聚焦时被改写;
+   - tap-highlight-color:干掉系统那层迟到的灰色高亮(它是继承属性,设一次就够);
+   - touch-action:manipulation:跳过双击缩放的等待窗口,click 立即派发;
+   紧接着用 :active 给即时反馈 —— 触屏没有 hover,少了反馈就会觉得「点了没反应」。 */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, a, .suggestions li { touch-action: manipulation; }
+
 body {
   min-width: 320px;
   min-height: 100dvh;
@@ -65,7 +77,6 @@ body::before {
 }
 
 button, input { font: inherit; }
-button, a { touch-action: manipulation; }
 ::selection { background: rgba(200, 164, 77, 0.42); }
 
 * { scrollbar-color: rgba(200, 164, 77, 0.4) rgba(214, 205, 168, 0.05); scrollbar-width: thin; }
@@ -131,7 +142,12 @@ button, a { touch-action: manipulation; }
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); }
-.btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+/* 按下给明确的位移 + 压暗:触屏没有 hover,这是唯一的「已受理」反馈 */
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: none;
+  filter: brightness(0.92);
+}
 .btn:disabled { opacity: 0.52; cursor: not-allowed; box-shadow: none; }
 .btn-sm { padding: 7px 12px; font-size: 0.85rem; min-height: 34px; }
 .btn-lg { padding: 13px 26px; font-size: 1.05rem; }
@@ -450,7 +466,7 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.suggestions li.active, .suggestions li:hover { background: var(--primary-soft); color: var(--primary-hover); }
+.suggestions li.active, .suggestions li:hover, .suggestions li:active { background: var(--primary-soft); color: var(--primary-hover); }
 /* WebKit 滚动条:贴合暗色军绿主题 */
 .suggestions::-webkit-scrollbar { width: 10px; }
 .suggestions::-webkit-scrollbar-track { background: transparent; }
@@ -645,7 +661,10 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
 
   .btn { min-height: 40px; padding: 9px 14px; }
   .btn-lg { min-height: 44px; padding: 11px 19px; }
-  .input-bar .input { min-height: 46px; font-size: 1rem; padding: 10px 12px; }
+  /* 注意选的是 .input-bar input —— 输入框在 HTML 里没有 class,
+     原先写的 .input-bar .input 是条**永远不匹配**的死规则,手机端尺寸从来没生效过。
+     font-size 必须 ≥16px,否则 iOS 聚焦时会自动放大整页。 */
+  .input-bar input { min-height: 46px; font-size: 1rem; padding: 10px 12px; }
   .input-bar .btn { min-height: 46px; padding-inline: 14px; }
 
   .status-line { padding: 8px 4px; font-size: 0.8rem; }

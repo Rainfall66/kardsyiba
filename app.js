@@ -282,6 +282,15 @@
   var previewState = { visible: false, file: '' };
   var hoverAnchor = null;             // 当前指针所在的锚点(候选条目 / 棋盘卡名格)
 
+  // 触屏设备压根没有「悬停」这回事:点一下会合成出一串 mousemove/mouseover,
+  // 于是每次点击都会排一个 120ms 的定时器、再到点后去读 offsetWidth /
+  // getBoundingClientRect(强制同步重排)。手机端本来就要应付软键盘弹起时的重排,
+  // 再叠这些纯属浪费 —— 所以干脆整个悬停管线在触屏上不启用。
+  // (CSS 里 @media (hover: none) 已经把浮层 display:none,这里连计算都省掉)
+  var CAN_HOVER = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(hover: hover)').matches
+    : true;
+
   // 加载失败后的冷却。**不要改成「一次失败就永久关闭」**:那样只要有一张图因为
   // 任何原因没拿到(在线版本来就没图、卡片目录被优化脚本切换的瞬间、代理抖动、
   // 浏览器缓存里的坏响应),整个会话的预览就再也回不来了,表现就是
@@ -327,7 +336,7 @@
   /** 悬停触发:等指针停稳再加载 */
   function schedulePreview(file, anchor) {
     cancelPreviewTimer();
-    if (imageBlocked() || !file) { hidePreview(); return; }
+    if (!CAN_HOVER || imageBlocked() || !file) { hidePreview(); return; }
     previewTimer = setTimeout(function () {
       previewTimer = null;
       showPreview(file, anchor);
@@ -416,7 +425,10 @@
       + ' · ' + activePool.length + ' 张 · 共 ' + MAX_GUESSES + ' 次机会';
     $('guess-input').disabled = false;
     $('guess-submit').disabled = false;
-    $('guess-input').focus();
+    // 只有能悬停的设备(桌面)才自动聚焦。触屏上自动聚焦会立刻弹出软键盘:
+    // 玩家还没看清棋盘,整页就先经历一次键盘弹起的重排风暴;
+    // 而且这会让顶栏(重新开始 / 查看答案 / 返回首页)开局就被键盘态藏起来。
+    if (CAN_HOVER) $('guess-input').focus();
   }
 
   function submitGuess(card) {
@@ -846,6 +858,11 @@
       closeSuggestions();
       submitGuess(card);
     }
+    // 按下提交按钮时别让它抢走焦点:否则输入框会先 blur(软键盘收起)、
+    // 紧接着 submitGuess 又 focus 回来(软键盘再弹出)—— 手机端每次提交都要
+    // 白跑两次键盘动画,整页跟着重排两轮,手指还按在屏幕上按钮就先跑了。
+    // preventDefault 只挡焦点转移,click 照常派发。
+    $('guess-submit').addEventListener('mousedown', function (event) { event.preventDefault(); });
     $('guess-submit').addEventListener('click', submitFromInput);
     input.addEventListener('input', updateSuggestions);
     input.addEventListener('focus', updateSuggestions);
@@ -923,6 +940,7 @@
       blocked: imageBlocked(),            // 处于加载失败冷却中(冷却结束会自动恢复)
       cooldownMs: IMAGE_RETRY_COOLDOWN_MS,
       anchor: hoverAnchor ? hoverAnchor.tagName : '',
+      canHover: CAN_HOVER,                // 触屏设备上整个悬停管线都不启用
     };
   };
 
@@ -939,9 +957,26 @@
     guessInputEl.addEventListener('blur', syncKeyboardActive);
   }
   // 视觉视口高度(移动端键盘弹起时输入坞贴底)
+  //
+  // 软键盘弹出/收起是个 300ms 左右的动画,visualViewport 的 resize 会**每帧都触发**。
+  // 之前直接在事件里写 CSS 变量:每一帧都让整页样式失效 + 重排,而 .game-wrap 是纵向
+  // flex、输入坞靠 margin-top:auto 贴底,重排又会让输入坞跟着动 —— 手指还按在屏幕上的
+  // 时候按钮跑了,click 落的就不是它了,表现正是「要点好几次才有反应」。
+  // 现在:一帧最多写一次(requestAnimationFrame 合并),值没变就完全不碰样式。
+  var lastViewportHeight = 0;
+  var viewportRaf = 0;
   function syncViewportHeight() {
-    var vh = window.visualViewport && window.visualViewport.height;
-    if (vh) document.documentElement.style.setProperty('--visual-viewport-height', Math.round(vh) + 'px');
+    if (viewportRaf) return;   // 本帧已经排过队了
+    var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+    viewportRaf = raf(function () {
+      viewportRaf = 0;
+      var vh = window.visualViewport && window.visualViewport.height;
+      if (!vh) return;
+      var rounded = Math.round(vh);
+      if (rounded === lastViewportHeight) return;   // 高度没变就别写样式,避免无谓重排
+      lastViewportHeight = rounded;
+      document.documentElement.style.setProperty('--visual-viewport-height', rounded + 'px');
+    });
   }
   syncViewportHeight();
   if (window.visualViewport) window.visualViewport.addEventListener('resize', syncViewportHeight);
