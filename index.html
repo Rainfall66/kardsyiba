@@ -98,6 +98,10 @@
     <div id="result-tone" class="overlay-card">
       <h2 id="result-title"></h2>
       <p class="muted" id="result-stats"></p>
+      <!-- 答案卡图:卡图没下载时由 JS 隐藏,不会出现裂图 -->
+      <div id="result-art" class="result-art hidden">
+        <img id="result-image" alt="" />
+      </div>
       <div class="answer-name" id="result-name"></div>
       <table class="info-table" id="result-info"></table>
       <div class="overlay-actions">
@@ -105,6 +109,12 @@
         <button id="view-btn" class="btn">查看对局</button>
       </div>
     </div>
+  </div>
+
+  <!-- 卡图预览:鼠标悬停棋盘卡名 / 候选卡名时浮出
+       pointer-events:none 很关键 —— 否则浮层会抢走鼠标,和 hover 互相触发形成闪烁 -->
+  <div id="card-preview" class="card-preview" aria-hidden="true">
+    <img id="card-preview-img" alt="" />
   </div>
 
   <!-- 规则弹窗 -->
@@ -166,6 +176,11 @@
         <p class="muted">其余 <b>73 张衍生牌已纳入</b>卡池,稀有度统一显示为「衍生卡」;
           同名衍生牌用费用区分(如 惩戒(0费) … 惩戒(12费))。
           触发天气的「预报」正规卡(海岸观察员、美国气象局等 11 张)也保留在卡池中。</p>
+        <h3>卡图预览</h3>
+        <p>把鼠标放在<b>棋盘里的卡名</b>或<b>候选条里的任意一条卡名</b>上,旁边就会浮出那张卡的卡图;
+          用 ↑↓ 键在候选间移动时,预览会跟着走。结算弹窗里也会直接显示答案卡图。</p>
+        <p class="muted">卡图是<b>可选</b>的:卡图文件放在 <code>images/</code>,不进版本控制。
+          若机器上没有卡图(例如在线试玩版),预览与结算卡图会自动隐藏,游戏照常游玩。</p>
         <h3>胜负</h3>
         <p>卡名猜对即胜;8 次仍未猜中或主动查看答案则失败。</p>
         <h3>卡池模式</h3>

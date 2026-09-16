@@ -15,6 +15,13 @@
  *   别名可能撞车(3 位数字覆盖不了 906 张单位),**撞车时不允许直接提交**,必须从候选里点选;
  * - 联想只填入输入框,提交由玩家手动确认。
  *
+ * 卡图(可选):
+ * - 卡图放在 images/,文件名取自每张卡的 image 字段(cards.js);
+ * - 结算弹窗显示答案卡图;鼠标悬停棋盘的「卡名」格或候选条里的卡名即可预览该卡卡图,
+ *   键盘上下键切换候选时预览跟随;
+ * - **卡图不是必需品**:images/ 不进版本控制,任何一次加载失败都会静默关掉预览与结算图,
+ *   没有卡图时游戏完全照常玩。
+ *
  * 数据库: window.KARDSYIBA_CARDS(见 cards.js,1590 张全卡表;由数据流水线 kardsyiba-pipeline 生成)
  */
 (function () {
@@ -220,7 +227,8 @@
       var tr = document.createElement('tr');
       if (index === state.guesses.length - 1) tr.className = 'row-latest';
       if (row.correct) tr.className = (tr.className ? tr.className + ' ' : '') + 'row-correct';
-      tr.innerHTML = '<td class="name' + (row.correct ? ' correct' : '') + '">' + escapeHtml(row.nickname) + '</td>'
+      tr.innerHTML = '<td class="name' + (row.correct ? ' correct' : '') + '" data-image="'
+        + escapeHtml(row.image || '') + '">' + escapeHtml(row.nickname) + '</td>'
         + cellHtml(row.attrs.nation)
         + cellHtml(row.attrs.cost)
         + cellHtml(row.attrs.type)
@@ -237,6 +245,77 @@
       dots += '<i' + (i < state.guesses.length ? ' class="used"' : '') + '></i>';
     }
     $('progress').innerHTML = dots;
+  }
+
+  // ---------- 卡图预览 ----------
+  // 卡图是**可选资源**(images/ 不进版本控制,见 README)。所以这里的原则是
+  // 「有图就显示,没图就安静地什么都不做」:任何一次加载失败都直接把预览整体关掉,
+  // 免得在没下卡图的环境里每次悬停都白发一次 404 请求。
+  var IMAGE_DIR = 'images/';
+  var CARD_IMAGE_RATIO = 702 / 500;   // 卡图全量实测统一 500×702,用于估算浮层高度
+  var imagesAvailable = true;
+  var previewState = { visible: false, file: '' };
+
+  function imageUrl(file) { return file ? IMAGE_DIR + file : ''; }
+
+  /**
+   * 把浮层摆在锚点元素旁边:优先右侧,右边放不下翻到左侧,再不行就贴边。
+   * 调用时浮层必须已经是 visible,否则 offsetWidth/Height 量不到真实尺寸。
+   */
+  function positionPreview(panel, anchor) {
+    if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return;
+    var rect = anchor.getBoundingClientRect();
+    var vw = window.innerWidth || 1024;
+    var vh = window.innerHeight || 768;
+    var w = panel.offsetWidth || 200;
+    var h = panel.offsetHeight || Math.round(w * CARD_IMAGE_RATIO) + 10;
+    var gap = 12;
+    var left = rect.right + gap;
+    if (left + w > vw - 8) left = rect.left - gap - w;
+    if (left < 8) left = Math.max(8, vw - w - 8);
+    var top = rect.top + rect.height / 2 - h / 2;
+    top = Math.min(Math.max(8, top), Math.max(8, vh - h - 8));
+    panel.style.left = Math.round(left) + 'px';
+    panel.style.top = Math.round(top) + 'px';
+  }
+
+  function showPreview(file, anchor) {
+    var panel = $('card-preview');
+    var img = $('card-preview-img');
+    if (!panel || !img) return;
+    if (!imagesAvailable || !file) { hidePreview(); return; }
+    if (img.getAttribute('data-file') !== file) {
+      img.setAttribute('data-file', file);
+      img.setAttribute('src', imageUrl(file));
+    }
+    panel.classList.add('show');
+    previewState.visible = true;
+    previewState.file = file;
+    positionPreview(panel, anchor);
+  }
+
+  function hidePreview() {
+    var panel = $('card-preview');
+    if (panel) panel.classList.remove('show');
+    previewState.visible = false;
+    previewState.file = '';
+  }
+
+  /**
+   * 结算弹窗里的答案卡图。
+   * 先保持隐藏、等 load 成功再显示 —— 这样在没下卡图(比如在线试玩版)的环境里,
+   * 弹窗不会先撑出一个空图框再塌回去。
+   */
+  function showResultArt(card) {
+    var art = $('result-art');
+    var img = $('result-image');
+    if (!art || !img) return;
+    var file = card && card.image;
+    if (!file || !imagesAvailable) { art.classList.add('hidden'); return; }
+    img.setAttribute('data-file', file);
+    img.setAttribute('alt', (card.nickname || '') + ' 的卡图');
+    img.setAttribute('src', imageUrl(file));
+    art.classList.add('hidden');
   }
 
   // ---------- 对局流程 ----------
@@ -269,6 +348,7 @@
       return;
     }
     var row = compare(card, state.target);
+    row.image = card.image || '';   // 仅供棋盘悬停预览卡图用,不参与判定
     row.guessedAt = Date.now();
     state.guesses.push(row);
     renderBoard();
@@ -303,9 +383,11 @@
 
   function showResult(result, stats) {
     var t = state.target;
+    hidePreview();   // 浮层别压在结算弹窗上
     $('result-title').textContent = result === 'won' ? '恭喜,猜对了!' : '很遗憾,未能猜中';
     $('result-tone').className = result === 'won' ? 'overlay-card win' : 'overlay-card lose';
     $('result-name').textContent = t.nickname;
+    showResultArt(t);
     $('result-stats').textContent = '共 ' + state.guesses.length + ' 次 · 总场次 ' + (stats.wins + stats.losses)
       + ' · 胜 ' + stats.wins + ' · 负 ' + stats.losses
       + ' · 当前连胜 ' + stats.streak;
@@ -323,7 +405,12 @@
   // ---------- 输入补全 ----------
   var suggestions = [];
 
-  function closeSuggestions() { suggestions = []; $('suggestions').innerHTML = ''; $('suggestions').classList.remove('open'); }
+  function closeSuggestions() {
+    suggestions = [];
+    $('suggestions').innerHTML = '';
+    $('suggestions').classList.remove('open');
+    hidePreview();
+  }
 
   /**
    * 组织候选行的显示文本:
@@ -389,6 +476,9 @@
       var li = document.createElement('li');
       li.textContent = suggestionText(c);
       li.className = 'suggest-item' + (index === 0 ? ' active' : '');
+      // 悬停候选即可预览卡图(不用先填进输入框)
+      li.addEventListener('mouseenter', function () { showPreview(c.image, li); });
+      li.addEventListener('mouseleave', hidePreview);
       li.onmousedown = function (event) {
         // 只把候选填入输入框,提交由玩家手动点击"提交猜测"
         event.preventDefault();
@@ -516,6 +606,43 @@
       }
     });
 
+    // 棋盘:鼠标悬停在「卡名」格上预览该卡卡图
+    // 用事件委托(棋盘会整块重建,逐格绑会丢),mouseover/mouseout 才能冒泡上来
+    var boardBody = $('board-body');
+    if (boardBody) {
+      boardBody.addEventListener('mouseover', function (event) {
+        var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
+        if (cell) showPreview(cell.getAttribute('data-image'), cell);
+      });
+      boardBody.addEventListener('mouseout', function (event) {
+        var cell = event.target && event.target.closest ? event.target.closest('td.name') : null;
+        if (!cell) return;
+        // 在格子内部移动也会触发 mouseout,目标还在格子里就别关
+        var to = event.relatedTarget;
+        if (to && typeof cell.contains === 'function' && cell.contains(to)) return;
+        hidePreview();
+      });
+    }
+
+    // 卡图加载失败 = 这台机器上没有卡图(images/ 不进版本控制)。
+    // 关掉预览,并让结算弹窗不要尝试显示图片。
+    var previewImg = $('card-preview-img');
+    if (previewImg) {
+      previewImg.addEventListener('error', function () {
+        imagesAvailable = false;
+        hidePreview();
+      });
+    }
+    var resultImg = $('result-image');
+    var resultArt = $('result-art');
+    if (resultImg && resultArt) {
+      resultImg.addEventListener('load', function () { resultArt.classList.remove('hidden'); });
+      resultImg.addEventListener('error', function () {
+        imagesAvailable = false;
+        resultArt.classList.add('hidden');
+      });
+    }
+
     var input = $('guess-input');
     // 手动提交:卡名必须完全一致;别名只有唯一命中时才允许直接提交,
     // 撞车的别名(如 334 对应 36 张)必须从候选项里点选,避免误提交
@@ -599,6 +726,8 @@
       active.scrollIntoView({ block: 'nearest' });
     }
     $('guess-input').value = suggestions[next].nickname;
+    // 键盘上下键切换候选时,预览跟着走(和鼠标悬停行为一致)
+    showPreview(suggestions[next].image, items[next]);
   }
 
   // 初始化顺序:先算各卡池张数 → 再读存档(需要张数判断卡池是否可用)→ 渲染 → 绑定事件
@@ -611,6 +740,17 @@
   KARDSYIBA.poolCards = poolCards;
   KARDSYIBA.getPoolState = function () {
     return { poolId: state.poolId, target: state.target, poolSize: activePool.length };
+  };
+  KARDSYIBA.getPreviewState = function () {
+    var img = $('card-preview-img');
+    var panel = $('card-preview');
+    return {
+      visible: previewState.visible,
+      file: previewState.file,
+      imagesAvailable: imagesAvailable,
+      showing: !!(panel && panel.classList.contains('show')),
+      src: img ? (img.getAttribute('src') || '') : '',
+    };
   };
 
   // ---------- 手机端优化:输入框聚焦 = 键盘弹起 ----------

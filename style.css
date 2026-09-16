@@ -478,6 +478,19 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   margin: 6px 0 14px;
   color: #f0e9d6;
 }
+/* 结算弹窗里的答案卡图。卡图是 500×702(全量实测一致),写死宽高比可让
+   弹窗高度在图加载完成前就稳定下来,不会先塌一下再撑开。 */
+.result-art { display: flex; justify-content: center; margin: 2px 0 14px; }
+.result-art.hidden { display: none; }
+.result-art img {
+  display: block;
+  width: min(100%, 15rem);
+  height: auto;
+  aspect-ratio: 500 / 702;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+}
 .info-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .info-table td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
 .info-table td.label { color: var(--text-light); width: 40%; }
@@ -539,6 +552,37 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   cursor: default;
 }
 .suggest-count b { color: var(--primary); font-weight: 700; }
+
+/* ---------- 卡图预览浮层(悬停棋盘卡名 / 候选卡名时出现) ---------- */
+.card-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: 12.5rem;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  visibility: hidden;
+  /* 必须穿透鼠标:否则浮层会盖住被悬停的元素,触发 mouseleave 再 mouseenter,来回闪烁 */
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.card-preview.show { opacity: 1; visibility: visible; }
+.card-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 500 / 702;
+  border-radius: 4px;
+}
+/* 触屏没有悬停,直接不显示浮层(候选条点选仍然照常工作) */
+@media (hover: none) {
+  .card-preview { display: none; }
+}
 
 /* 提示 */
 .toast {
@@ -630,6 +674,7 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   .overlay { padding: 12px; }
   .overlay-card { padding: 20px 16px; border-radius: 8px; }
   .answer-name { font-size: 1.5rem; }
+  .result-art img { width: min(100%, 11rem); }
   .overlay-actions { flex-direction: column; }
   .overlay-actions .btn { width: 100%; min-height: 44px; }
   .info-table td { padding: 7px 4px; font-size: 0.84rem; }
