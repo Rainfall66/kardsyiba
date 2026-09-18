@@ -504,19 +504,29 @@
   }
 
   /**
-   * 组织候选行的显示文本:
-   *   卡名 · 国籍 · 费用 · 类型 · 稀有度 [· 别名]
+   * 候选行的属性副行(第二行):国籍 · 费用 · 类型 · 稀有度 [别名]
    * 别名会显示出来,方便用数字搜索时确认是不是想要的卡。
    */
-  function suggestionText(c) {
-    var parts = [c.nickname];
+  function suggestionMeta(c) {
+    var parts = [];
     if (c.nation) parts.push(c.nation);
     if (Number.isInteger(c.cost)) parts.push(c.cost + '费');
     if (c.type) parts.push(c.type);
     if (c.rarity) parts.push(c.rarity);
-    var body = parts.join(' · ');
-    if (c.alias) body += '  [' + c.alias + ']';
-    return body;
+    var meta = parts.join(' · ');
+    if (c.alias) meta += (meta ? ' ' : '') + '[' + c.alias + ']';
+    return meta;
+  }
+
+  /**
+   * 候选项双行结构:第一行卡名,第二行属性。
+   * 手机端单行会被长卡名挤成省略号,国籍/稀有度等关键信息全部不可见,故拆两行。
+   */
+  function suggestionHtml(c) {
+    var html = '<span class="s-name">' + escapeHtml(c.nickname) + '</span>';
+    var meta = suggestionMeta(c);
+    if (meta) html += '<span class="s-meta">' + escapeHtml(meta) + '</span>';
+    return html;
   }
 
   // 搜索模块(search.js):支持「德国 334」「334 坦克」「334 德国 坦克」这类复合查询。
@@ -565,7 +575,7 @@
 
     suggestions.forEach(function (c, index) {
       var li = document.createElement('li');
-      li.textContent = suggestionText(c);
+      li.innerHTML = suggestionHtml(c);
       li.className = 'suggest-item' + (index === 0 ? ' active' : '');
       // 卡图文件名挂在 data-image 上,由容器上的 mousemove 委托读取(见 bind)
       if (c.image) li.setAttribute('data-image', c.image);

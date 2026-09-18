@@ -456,17 +456,29 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   scrollbar-color: var(--border-strong) transparent;
 }
 .suggestions.open { display: block; }
+/* 候选项双行:第一行卡名,第二行属性(手机端长卡名不再挤掉国籍/稀有度等信息) */
 .suggestions li {
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: 4px;
   cursor: pointer;
   color: var(--text);
-  font-size: 0.92rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.suggestions li.active, .suggestions li:hover, .suggestions li:active { background: var(--primary-soft); color: var(--primary-hover); }
+.suggestions .s-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.suggestions .s-meta {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-light);
+}
+.suggestions li.active, .suggestions li:hover, .suggestions li:active { background: var(--primary-soft); }
+.suggestions li.active .s-name, .suggestions li:hover .s-name, .suggestions li:active .s-name { color: var(--primary-hover); }
+.suggestions li.active .s-meta, .suggestions li:hover .s-meta, .suggestions li:active .s-meta { color: var(--text-sec); }
 /* WebKit 滚动条:贴合暗色军绿主题 */
 .suggestions::-webkit-scrollbar { width: 10px; }
 .suggestions::-webkit-scrollbar-track { background: transparent; }
@@ -703,8 +715,8 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   #game-screen.keyboard-active { height: var(--visual-viewport-height, 100dvh); min-height: 0; }
   .autocomplete { left: 0; right: 0; }
   .suggestions {
-    left: 14px;
-    right: 14px;
+    /* 不再额外内缩:候选条与输入栏同宽(game-wrap 的 14px 内边距已足够),
+       旧版 left/right:14px 是双重内缩,白丢了 28px 宽度 */
     max-height: 48dvh;
   }
 
@@ -728,4 +740,6 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   .board td { padding: 5px 1px; font-size: 0.66rem; }
   .board td .dir { font-size: 7px; }
   .topbar .actions .btn { padding: 6px 8px; font-size: 0.76rem; }
+  .suggestions .s-name { font-size: 0.88rem; }
+  .suggestions .s-meta { font-size: 0.68rem; }
 }
