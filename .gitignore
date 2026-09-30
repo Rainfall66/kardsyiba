@@ -6,9 +6,19 @@ desktop.ini
 .idea/
 .vscode/
 
-# 卡图**入库**(约 25.8 MB / 1590 张),线上 GitHub Pages 要直接引用,不能再忽略。
+# 卡图**入库**(约 25.5 MB / 1576 张),线上 GitHub Pages 要直接引用,不能再忽略。
 # 下架或换图:删掉对应 avif 再提交即可。
 # (早期版本忽略 images/*.avif,导致线上试玩版一张图都没有 —— 见 images/README.md)
+
+# 数据流水线**不随仓库发布**:只在本机用于抓取官方接口 / 生成 cards.js(约 3.9 MB,
+# 含原始与中间 JSON)。发布范围见 README「数据说明」;排除后 git status 才是干净的。
+# 注意:脚本里的相对路径按「本目录的上一级 = 游戏目录」写,位置不要随意挪。
+pipeline/
+
+# 流水线脚本在游戏目录里产生的暂存 / 备份目录(optimize_images.js),
+# 体积是 25 MB 级,绝不能误提交
+images-opt/
+images-orig/
 
 # 依赖与日志(本项目零依赖,防止误提交)
 node_modules/

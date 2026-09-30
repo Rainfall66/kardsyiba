@@ -1,5 +1,5 @@
-// K一把 · KARDS卡牌数据库(由 kardsyiba-pipeline/build_cards.js 生成,请勿手改)
-// 数据链路:kardsyiba-pipeline 下 fetch_cards.js(直连官方 GraphQL) → merge_cards.js(整合) → build_cards.js
+// K一把 · KARDS卡牌数据库(由 pipeline/build_cards.js 生成,请勿手改)
+// 数据链路:pipeline/ 下 fetch_cards.js(直连官方 GraphQL) → merge_cards.js(整合) → build_cards.js
 // 共收录 1576 张可猜卡牌,其中衍生卡 59 张(set=衍生,可用开始页的开关整组排除)。
 // 已排除:天气牌 12 张、「惩戒」同名衍生牌 12 张、与正规卡同名的衍生牌 2 张、老兵升级形态 44 张。
 //   天气牌(澳新风暴天气机制)触发天气的「预报」正规卡保留;

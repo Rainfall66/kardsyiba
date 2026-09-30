@@ -16,10 +16,10 @@
 
 ## 怎么下载
 
-下载脚本在**数据流水线**目录 `../kardsyiba-pipeline/`(不随本仓库发布):
+下载脚本在**数据流水线**目录 `../pipeline/`(不随本仓库发布):
 
 ```bash
-cd ../kardsyiba-pipeline
+cd ../pipeline
 
 # 1) 先取官方当前 CDN 版本号(需代理,几秒)
 $env:HTTPS_PROXY='http://127.0.0.1:7897'; $env:NODE_USE_ENV_PROXY='1'

@@ -149,7 +149,6 @@ button, input { font: inherit; }
   filter: brightness(0.92);
 }
 .btn:disabled { opacity: 0.52; cursor: not-allowed; box-shadow: none; }
-.btn-sm { padding: 7px 12px; font-size: 0.85rem; min-height: 34px; }
 .btn-lg { padding: 13px 26px; font-size: 1.05rem; }
 .btn-green {
   background: linear-gradient(180deg, #68893f, #557032);
@@ -160,8 +159,6 @@ button, input { font: inherit; }
 .btn-green:active:not(:disabled) { background: #4c6530; box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.45); }
 .btn-warning { background: transparent; border-color: var(--warning); color: var(--warning); }
 .btn-warning:hover:not(:disabled) { background: rgba(217, 153, 59, 0.12); border-color: var(--warning); color: var(--warning); box-shadow: none; }
-.btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
-.btn-danger:hover:not(:disabled) { background: rgba(181, 71, 60, 0.14); border-color: var(--danger); color: var(--danger); box-shadow: none; }
 .link-btn { background: none; border: none; color: var(--text-light); text-decoration: underline; font-size: 0.9rem; margin-top: 6px; cursor: pointer; }
 
 /* ---------- 开始页(征兵海报式排版) ---------- */
@@ -380,6 +377,16 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
 .board td.correct { background-color: var(--correct); border-color: rgba(0, 0, 0, 0.3); color: #f2f0e4; }
 .board td.close { background-color: var(--close); border-color: rgba(0, 0, 0, 0.3); color: #f2f0e4; }
 .board td.wrong { background-color: var(--wrong); border-color: rgba(0, 0, 0, 0.3); color: #d3d0c2; }
+/* 不匹配格叠一层 45° 斜纹,让判定**不只靠颜色**:纯色 = 命中,斜纹 = 不匹配,
+   费用接近则是纯色 + ▲▼ 箭头 —— 红绿色盲玩家也能靠形态读棋盘(图例同步画了斜纹)。 */
+.board td.wrong {
+  background-image:
+    repeating-linear-gradient(45deg,
+      rgba(0, 0, 0, 0.18) 0 2px, rgba(0, 0, 0, 0) 2px 5px),
+    linear-gradient(180deg,
+      rgba(236, 229, 211, 0.14), rgba(236, 229, 211, 0.02) 42%,
+      rgba(0, 0, 0, 0.14) 88%, rgba(0, 0, 0, 0.22));
+}
 .board td .dir { display: inline-flex; vertical-align: -2px; margin-left: 3px; }
 .board tr.row-latest td { border-color: var(--primary); }
 .board tr.row-correct td { background: var(--primary-soft); }
@@ -406,7 +413,11 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
 }
 .legend .legend-correct { background: var(--correct); }
 .legend .legend-close { background: var(--close); }
-.legend .legend-wrong { background: var(--wrong); }
+.legend .legend-wrong {
+  background-color: var(--wrong);
+  background-image: repeating-linear-gradient(45deg,
+    rgba(0, 0, 0, 0.18) 0 2px, rgba(0, 0, 0, 0) 2px 5px);
+}
 
 /* 输入栏(野战电台面板) */
 .input-bar {
@@ -489,8 +500,6 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
 }
 .suggestions::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-.empty-hint { color: var(--text-light); text-align: center; padding: 60px 16px; }
-
 /* ---------- 弹窗(作战简报风) ---------- */
 .overlay {
   position: fixed;
@@ -503,6 +512,9 @@ table.board { width: 100%; border-collapse: separate; border-spacing: 6px 5px; f
   padding: 20px;
 }
 .overlay.show { display: flex; }
+/* 弹窗获得焦点(打开时由 JS 移入)不该画焦点圈,但键盘用户 Tab 进来时要看得见 */
+.overlay-card:focus { outline: none; }
+.overlay-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .overlay-card {
   background: var(--card);
   border: 1px solid var(--border);

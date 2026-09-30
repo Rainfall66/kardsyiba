@@ -4,7 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#12140f" />
+  <meta name="description" content="KARDS 卡牌猜测游戏:输入卡名,按国籍 / 费用 / 类型 / 稀有度 / 卡包的逐属性反馈,8 次机会内猜出目标卡。纯静态、零依赖、手机可玩。" />
   <title>K一把 - KARDS卡牌猜测游戏</title>
+  <!-- 分享卡片:QQ / 微信 / B站 等按 og 标签抓取 -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="K一把 · KARDS 卡牌猜测游戏" />
+  <meta property="og:description" content="逐属性反馈的猜卡游戏:1576 张卡、3 种卡池 × 衍生卡开关,8 次机会内猜出目标卡。" />
+  <meta property="og:url" content="https://rainfall66.github.io/kardsyiba/" />
+  <meta name="twitter:card" content="summary" />
+  <!-- 内联 SVG 图标:省一个文件,也免得浏览器去要 /favicon.ico 吃一个 404 -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2312140f'/%3E%3Crect x='4.5' y='4.5' width='23' height='23' rx='4' fill='none' stroke='%23c8a44d' stroke-width='2'/%3E%3Ctext x='16' y='22.5' font-family='sans-serif' font-size='16' font-weight='700' text-anchor='middle' fill='%23c8a44d'%3EK%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -97,19 +106,21 @@
       </div>
       <div class="input-dock">
         <div class="autocomplete">
-          <ul id="suggestions" class="suggestions"></ul>
+          <ul id="suggestions" class="suggestions" role="listbox" aria-label="候选卡牌"></ul>
         </div>
         <div class="input-bar">
-          <input id="guess-input" type="text" placeholder="输入卡名 / 别名,或复合搜索:334 德国 坦克" autocomplete="off" disabled />
+          <input id="guess-input" type="text" placeholder="输入卡名 / 别名,或复合搜索:334 德国 坦克" autocomplete="off" disabled
+                 role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list"
+                 aria-label="输入卡名或单位别名" />
           <button id="guess-submit" class="btn btn-green" disabled>提交猜测</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 结算弹窗 -->
-  <div id="result-overlay" class="overlay">
-    <div id="result-tone" class="overlay-card">
+  <!-- 结算弹窗(role=dialog + aria-modal:读屏会当作对话框;打开时 JS 把焦点移进卡片) -->
+  <div id="result-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">
+    <div id="result-tone" class="overlay-card" tabindex="-1">
       <h2 id="result-title"></h2>
       <p class="muted" id="result-stats"></p>
       <!-- 答案卡图:卡图没下载时由 JS 隐藏,不会出现裂图 -->
@@ -132,10 +143,10 @@
   </div>
 
   <!-- 规则弹窗 -->
-  <div id="rules-overlay" class="overlay">
-    <div class="overlay-card">
+  <div id="rules-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+    <div id="rules-card" class="overlay-card" tabindex="-1">
       <button id="rules-close" class="rule-close" aria-label="关闭">×</button>
-      <h2>游戏规则</h2>
+      <h2 id="rules-title">游戏规则</h2>
       <div class="rules-body">
         <p>系统从卡库中随机选一张作为答案(默认 <b>1576 张</b>,可在开始页按卡池与衍生卡设置缩小范围),
           你输入卡名,每次猜测会新增一行,逐属性给出反馈。</p>
@@ -143,9 +154,11 @@
         <ul>
           <li><b style="color:var(--green)">绿色(命中)</b> —— 国籍、类型、稀有度、卡包与答案相同</li>
           <li><b style="color:var(--yellow)">黄色(接近)</b> —— 费用相差 1 以内</li>
-          <li><b style="color:var(--text-light)">灰色</b> —— 与答案差距较大,或该属性为未知("-")</li>
+          <li><b style="color:var(--text-light)">灰色(不匹配)</b> —— 与答案差距较大,或该属性为未知("-")</li>
           <li><b>箭头</b> —— 费用提示答案更高(▲)/更低(▼)</li>
         </ul>
+        <p class="muted">不只看颜色:不匹配的格子底色带<b>斜纹</b>(命中是纯色),所以在红绿色盲或黑白打印下
+          一样能读棋盘。</p>
         <h3>属性说明</h3>
         <ul>
           <li><b>国籍</b>:苏联 / 美国 / 日本 / 德国 / 英国 / 法国 / 意大利 / 波兰 / 芬兰 / 澳新军团</li>
@@ -221,7 +234,8 @@
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
+  <!-- 提示条:role=status + aria-live,读屏才会念出「别名撞车 / 不属于本局卡池」这类关键反馈 -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="cards.js"></script>
   <script src="search.js"></script>

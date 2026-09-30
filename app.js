@@ -23,7 +23,7 @@
  * - **卡图不是必需品**:卡图随仓库发布,但游戏不依赖,加载失败只是静默隐藏预览与结算图
  *   (并进入几秒冷却,避免没图时疯狂 404),冷却结束会自动恢复 —— 不会一次失败就永久失效。
  *
- * 数据库: window.KARDSYIBA_CARDS(见 cards.js,1576 张全卡表;由数据流水线 kardsyiba-pipeline 生成)
+ * 数据库: window.KARDSYIBA_CARDS(见 cards.js,1576 张全卡表;由数据流水线 pipeline/ 生成)
  */
 (function () {
   'use strict';
@@ -92,7 +92,7 @@
   // 只决定「系统从哪个卡池抽答案」,不改判定规则。
   // - active  现役卡池(reserved !== true)
   // - reserve 预备卡池(reserved === true)
-  // - all     全部(现役 + 预备 + 老兵形态),与旧版行为一致
+  // - all     全部(现役 + 预备;老兵升级形态、天气牌等在生成卡库时已排除,见 README)
   var POOLS = [
     {
       id: 'active',
@@ -170,8 +170,17 @@
     list.push({ n: nickname, t: Date.now() });
     storageSet(RECENT_KEY, list.slice(-200));
   }
+  // 战绩存档:逐字段校验。存档可能被手改或旧版本写坏,不过一遍的话
+  // 一个字符串就能让结算面板显示成 NaN(而且 NaN 会顺着 saveStats 写回存档)。
+  var STATS_FIELDS = ['wins', 'losses', 'streak', 'bestStreak'];
   function loadStats() {
-    return storageGet(STATS_KEY) || { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
+    var raw = storageGet(STATS_KEY) || {};
+    var out = {};
+    for (var i = 0; i < STATS_FIELDS.length; i++) {
+      var v = raw[STATS_FIELDS[i]];
+      out[STATS_FIELDS[i]] = (typeof v === 'number' && isFinite(v) && v >= 0) ? Math.floor(v) : 0;
+    }
+    return out;
   }
   function saveStats(stats) { storageSet(STATS_KEY, stats); }
 
@@ -205,11 +214,6 @@
     if (byAlias.length === 1) return { card: byAlias[0], by: 'alias' };
     if (byAlias.length > 1) return { card: null, by: 'alias-ambiguous', matches: byAlias };
     return null;
-  }
-
-  function findCard(input, cards) {
-    var r = resolveInput(input, cards);
-    return r ? r.card : null;
   }
 
   function toast(message) {
@@ -390,8 +394,7 @@
 
   /**
    * 结算弹窗里的答案卡图。
-   * 先保持隐藏、等 load 成功再显示 —— 这样在没下卡图(比如在线试玩版)的环境里,
-   * 弹窗不会先撑出一个空图框再塌回去。
+   * 先保持隐藏、等 load 成功再显示 —— 这样在图缺失的环境里,弹窗不会先撑出空图框再塌回去。
    */
   function showResultArt(card) {
     var art = $('result-art');
@@ -399,10 +402,18 @@
     if (!art || !img) return;
     var file = card && card.image;
     if (!file || imageBlocked()) { art.classList.add('hidden'); return; }
-    img.setAttribute('data-file', file);
     img.setAttribute('alt', (card.nickname || '') + ' 的卡图');
-    img.setAttribute('src', imageUrl(file));
-    art.classList.add('hidden');
+    // ⚠️ 只有**换图**时才重设 src:把 src 设成同一个值,浏览器不会再派发 load 事件,
+    //    那样第二次遇到同一张答案时弹窗里永远是空的(预览浮层有同样的守卫)。
+    if (img.getAttribute('data-file') !== file) {
+      art.classList.add('hidden');
+      img.setAttribute('data-file', file);
+      img.setAttribute('src', imageUrl(file));
+    } else if (img.complete && img.naturalWidth) {
+      art.classList.remove('hidden');   // 图已在缓存里,不会再有 load,直接显示
+    } else {
+      art.classList.add('hidden');
+    }
   }
 
   // ---------- 对局流程 ----------
@@ -487,13 +498,46 @@
       + '<tr><td class="label">类型</td><td>' + escapeHtml(t.type || '-') + '</td></tr>'
       + '<tr><td class="label">稀有度</td><td>' + escapeHtml(t.rarity || '-') + '</td></tr>'
       + '<tr><td class="label">卡包</td><td>' + escapeHtml(t.set || '-') + '</td></tr>';
-    $('result-overlay').classList.add('show');
+    openOverlay($('result-overlay'), $('result-tone'));
   }
 
-  function hideResult() { $('result-overlay').classList.remove('show'); }
+  function hideResult() { closeOverlay($('result-overlay')); }
 
   // ---------- 输入补全 ----------
   var suggestions = [];
+  var SUGGESTION_ID_PREFIX = 'sug-';   // 候选项 id:aria-activedescendant 要指向它
+
+  /** 候选条里的卡牌项(排除顶部的计数徽标) */
+  function suggestionItems(list) {
+    var out = [];
+    var kids = list.children;
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i].classList && kids[i].classList.contains('suggest-item')) out.push(kids[i]);
+    }
+    return out;
+  }
+
+  /**
+   * 把「候选条开着没有 / 当前高亮哪一项」同步到输入框的 ARIA 属性。
+   * 输入框是 role=combobox,靠 aria-expanded + aria-activedescendant 让读屏知道
+   * 候选出现了、且正在念哪一条 —— 只画视觉高亮的话读屏用户完全感知不到。
+   */
+  function syncSuggestAria() {
+    var input = $('guess-input');
+    var list = $('suggestions');
+    if (!input || !list) return;
+    var open = !!(suggestions.length && list.classList.contains('open'));
+    input.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var items = suggestionItems(list);
+    var activeId = '';
+    for (var i = 0; i < items.length; i++) {
+      var isActive = items[i].classList.contains('active');
+      items[i].setAttribute('aria-selected', isActive ? 'true' : 'false');
+      if (isActive && !activeId) activeId = items[i].getAttribute('id') || '';
+    }
+    if (open && activeId) input.setAttribute('aria-activedescendant', activeId);
+    else input.removeAttribute('aria-activedescendant');
+  }
 
   function closeSuggestions() {
     suggestions = [];
@@ -501,6 +545,7 @@
     $('suggestions').classList.remove('open');
     hoverAnchor = null;   // 列表没了,锚点也要清掉,否则下次移到同一位置不会重新触发
     hidePreview();
+    syncSuggestAria();
   }
 
   /**
@@ -553,11 +598,13 @@
     suggestions = hits.slice(0, SUGGESTION_LIMIT);
     var list = $('suggestions');
     list.innerHTML = '';
-    if (!suggestions.length) { list.classList.remove('open'); return; }
+    if (!suggestions.length) { list.classList.remove('open'); syncSuggestAria(); return; }
 
     // 计数徽标(吸附在候选条顶部;候选多时可滚动查看)
+    // role=presentation:它是 listbox 里的装饰项,不该被当成一个可选项念出来
     var badge = document.createElement('li');
     badge.className = 'suggest-count';
+    badge.setAttribute('role', 'presentation');
     var label = '匹配 ' + hits.length + ' 张';
     if (hits.length > suggestions.length) {
       label += ',显示前 ' + suggestions.length + ' 张';
@@ -577,6 +624,10 @@
       var li = document.createElement('li');
       li.innerHTML = suggestionHtml(c);
       li.className = 'suggest-item' + (index === 0 ? ' active' : '');
+      // listbox / option 语义:唯一 id 供 aria-activedescendant 指过来
+      li.setAttribute('role', 'option');
+      li.setAttribute('id', SUGGESTION_ID_PREFIX + index);
+      li.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
       // 卡图文件名挂在 data-image 上,由容器上的 mousemove 委托读取(见 bind)
       if (c.image) li.setAttribute('data-image', c.image);
       li.onmousedown = function (event) {
@@ -588,6 +639,7 @@
       list.appendChild(li);
     });
     list.classList.add('open');
+    syncSuggestAria();
   }
 
   // ---------- 开始页两个选择器(卡池模式 / 衍生卡开关) ----------
@@ -693,9 +745,28 @@
     state.withTokens = typeof saved === 'boolean' ? saved : DEFAULT_WITH_TOKENS;
   }
 
+  // ---------- 弹窗焦点管理 ----------
+  // 打开时把焦点移进对话框(读屏才会进入 dialog 上下文、不会继续在背后页面上游走),
+  // 关闭时还给打开前的那个元素。两个弹窗共用一份 lastFocused(它们不会同时开着)。
+  // 焦点目标用 id 显式传入,不靠 querySelector —— 卡片元素本身是最稳的锚点。
+  var lastFocused = null;
+  function openOverlay(overlay, card) {
+    if (!overlay) return;
+    if (!overlay.classList.contains('show')) lastFocused = document.activeElement;
+    overlay.classList.add('show');
+    if (card && typeof card.focus === 'function') card.focus();
+  }
+  function closeOverlay(overlay) {
+    if (!overlay) return;
+    overlay.classList.remove('show');
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+    lastFocused = null;
+  }
+
   // ---------- 规则弹窗 ----------
   function toggleRules(show) {
-    $('rules-overlay').classList.toggle('show', show);
+    if (show) openOverlay($('rules-overlay'), $('rules-card'));
+    else closeOverlay($('rules-overlay'));
   }
 
   // ---------- 事件绑定 ----------
@@ -887,21 +958,16 @@
       } else if (event.key === 'ArrowUp' && suggestions.length) {
         event.preventDefault();
         moveActive(-1);
-      } else if (event.key === 'Tab' && suggestions.length) {
-        event.preventDefault();
-        $('guess-input').value = suggestions[0].nickname;
-        updateSuggestions();
       }
+      // Tab **故意不接管**:以前按 Tab 会填第一条候选,结果是键盘用户
+      // 没法再把焦点移到「提交猜测」按钮上(Tab 是浏览器给的无障碍通道)。
+      // 选候选请用 ↑↓ + Enter,或在候选条上直接点。
     });
   }
 
   function moveActive(direction) {
     // 候选条里除卡牌项外还有计数徽标,必须只取 .suggest-item,否则索引会错位
-    var all = $('suggestions').children;
-    var items = [];
-    for (var k = 0; k < all.length; k++) {
-      if (all[k].classList && all[k].classList.contains('suggest-item')) items.push(all[k]);
-    }
+    var items = suggestionItems($('suggestions'));
     if (!items.length) return;
     var current = 0;
     for (var i = 0; i < items.length; i++) {
@@ -915,6 +981,7 @@
       active.scrollIntoView({ block: 'nearest' });
     }
     $('guess-input').value = suggestions[next].nickname;
+    syncSuggestAria();   // 高亮换了,aria-activedescendant 要跟着换
     // 键盘上下键切换候选时,预览跟着走(和鼠标悬停行为一致)
     showPreview(suggestions[next].image, items[next]);
   }
